@@ -9,7 +9,102 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      admins: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          is_active?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+        }
+        Relationships: []
+      }
+      best_games: {
+        Row: {
+          created_at: string
+          description_en: string
+          description_it: string
+          format: string
+          id: string
+          image_url: string
+          phase: string
+          players: string
+          replay_url: string
+          tournament: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description_en: string
+          description_it: string
+          format: string
+          id?: string
+          image_url: string
+          phase: string
+          players: string
+          replay_url: string
+          tournament: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description_en?: string
+          description_it?: string
+          format?: string
+          id?: string
+          image_url?: string
+          phase?: string
+          players?: string
+          replay_url?: string
+          tournament?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      members: {
+        Row: {
+          achievements: string[]
+          created_at: string
+          id: string
+          image: string
+          join_date: string | null
+          name: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          achievements: string[]
+          created_at?: string
+          id?: string
+          image: string
+          join_date?: string | null
+          name: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          achievements?: string[]
+          created_at?: string
+          id?: string
+          image?: string
+          join_date?: string | null
+          name?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
