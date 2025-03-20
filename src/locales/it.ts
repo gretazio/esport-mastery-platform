@@ -6,6 +6,7 @@ export const it = {
   players: "Players",
   resources: "Risorse",
   faq: "FAQ",
+  bestGames: "Migliori Partite",
   followOnTwitter: "Seguici su Twitter",
 
   // Hero
