@@ -30,6 +30,7 @@ export const it = {
   viewBestGames: "Vedi Migliori Partite",
   noMembers: "Nessun membro trovato",
   retry: "Riprova",
+  watchReplay: "Guarda Replay",
 
   // Footer
   quickLinks: "Link Rapidi",

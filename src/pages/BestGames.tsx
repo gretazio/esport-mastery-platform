@@ -23,7 +23,7 @@ interface Game {
 const BestGames = () => {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
-  const { currentLanguage, translations } = useLanguage();
+  const { locale, translations } = useLanguage();
 
   // Use debounced effect to fetch games only once
   useDebouncedEffect(() => {
@@ -145,7 +145,7 @@ const BestGames = () => {
                     <h2 className="text-2xl font-bold mb-4">{game.players}</h2>
                     
                     <p className="text-gray-300 mb-6">
-                      {currentLanguage === 'it' ? game.description_it : game.description_en}
+                      {locale === 'it' ? game.description_it : game.description_en}
                     </p>
                     
                     <a
@@ -154,7 +154,7 @@ const BestGames = () => {
                       rel="noopener noreferrer"
                       className="inline-block px-6 py-2 bg-[#D946EF] text-white rounded-full hover:bg-[#D946EF]/90 transition-colors"
                     >
-                      {translations.watchReplay}
+                      {locale === 'it' ? 'Guarda Replay' : 'Watch Replay'}
                     </a>
                   </div>
                 </motion.div>

@@ -8,6 +8,7 @@ type Translations = typeof it;
 
 interface LanguageContextType {
   locale: Locale;
+  currentLanguage?: Locale; // Added for backward compatibility
   translations: Translations;
   setLocale: (locale: Locale) => void;
 }
@@ -24,6 +25,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
 
   const value = {
     locale,
+    currentLanguage: locale, // Add this for backward compatibility
     translations: translations[locale],
     setLocale,
   };

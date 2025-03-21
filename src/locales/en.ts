@@ -31,6 +31,7 @@ export const en = {
   viewBestGames: "View Best Games",
   noMembers: "No members found",
   retry: "Retry",
+  watchReplay: "Watch Replay",
 
   // Footer
   quickLinks: "Quick Links",
