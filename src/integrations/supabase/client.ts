@@ -17,8 +17,23 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     flowType: 'implicit'
   },
   global: {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    },
     fetch: function customFetch(url, options) {
-      // Add custom fetch handling for debugging if needed
+      // Add timestamp to bust cache for auth-related requests
+      const isAuthRequest = url.toString().includes('/auth/');
+      const urlWithParam = isAuthRequest 
+        ? new URL(url.toString())
+        : url;
+      
+      if (isAuthRequest && urlWithParam instanceof URL) {
+        urlWithParam.searchParams.set('_t', Date.now().toString());
+        return fetch(urlWithParam, options);
+      }
+      
       return fetch(url, options);
     }
   }

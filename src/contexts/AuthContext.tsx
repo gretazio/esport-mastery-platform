@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Check if user is admin
+  // Check if user is admin with caching to avoid multiple calls
   const checkIsAdmin = async (userId: string): Promise<boolean> => {
     if (!userId) {
       console.log("No user ID provided to checkIsAdmin");
@@ -63,12 +63,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Initialize auth state - refactored to avoid race conditions
   useEffect(() => {
-    // Set up auth state listener first
+    console.log("Setting up auth state...");
+    
+    // Set up auth state listener first to avoid missing events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log("Auth state change detected:", event);
-        
+
+        // Handle logout or session expiry
         if (!currentSession) {
           setUser(null);
           setSession(null);
@@ -78,32 +82,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         
+        // Update session state
         setSession(currentSession);
         setUser(currentSession.user);
         
-        // Only check admin status if we have a user
-        if (currentSession.user) {
-          try {
-            const adminStatus = await checkIsAdmin(currentSession.user.id);
-            setIsAdmin(adminStatus);
-            console.log("Auth state updated:", { 
-              userId: currentSession.user.id, 
-              isAdmin: adminStatus 
-            });
-          } catch (error) {
-            console.error("Error checking admin status during auth change:", error);
-            setIsAdmin(false);
-          }
-        }
-        
+        // Reset loading state after update
         setLoading(false);
       }
     );
     
-    // Then check current session
+    // Then get current session
     const initAuth = async () => {
       try {
-        setLoading(true);
         console.log("Initializing auth...");
         
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
@@ -123,23 +113,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         
+        // Update session state
         setSession(currentSession);
         setUser(currentSession.user);
-        
-        // Only check admin status if we have a user
-        if (currentSession.user) {
-          try {
-            const adminStatus = await checkIsAdmin(currentSession.user.id);
-            setIsAdmin(adminStatus);
-            console.log("Auth state updated:", { 
-              userId: currentSession.user.id, 
-              isAdmin: adminStatus 
-            });
-          } catch (error) {
-            console.error("Error checking admin status during init:", error);
-            setIsAdmin(false);
-          }
-        }
       } catch (error: any) {
         console.error("Auth initialization error:", error);
         toast({
@@ -158,6 +134,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       subscription.unsubscribe();
     };
   }, [toast]);
+
+  // Check admin status separately when user ID changes to avoid unnecessary calls
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user) {
+        try {
+          const adminStatus = await checkIsAdmin(user.id);
+          setIsAdmin(adminStatus);
+          console.log("Admin status updated:", { 
+            userId: user.id, 
+            isAdmin: adminStatus 
+          });
+        } catch (error) {
+          console.error("Error checking admin status:", error);
+          setIsAdmin(false);
+        }
+      }
+    };
+
+    checkAdminStatus();
+  }, [user?.id]); // Only run when user ID changes
 
   // Sign out function
   const signOut = async () => {

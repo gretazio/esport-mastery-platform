@@ -15,7 +15,7 @@ import { useAuth } from "../contexts/AuthContext";
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -42,7 +42,7 @@ const Auth = () => {
     }
 
     try {
-      setLoading(true);
+      setFormSubmitting(true);
       
       if (isSignUp) {
         // Registration
@@ -82,7 +82,10 @@ const Auth = () => {
           description: "Hai effettuato l'accesso con successo",
         });
         
-        navigate('/admin');
+        // Short delay to ensure session is set up
+        setTimeout(() => {
+          navigate('/admin');
+        }, 500);
       }
     } catch (error: any) {
       console.error("Auth error:", error);
@@ -100,7 +103,7 @@ const Auth = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setFormSubmitting(false);
     }
   };
 
@@ -140,7 +143,7 @@ const Auth = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@example.com"
                   className="bg-black/50 border-white/20"
-                  disabled={loading}
+                  disabled={formSubmitting}
                 />
               </div>
               
@@ -153,16 +156,16 @@ const Auth = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="********"
                   className="bg-black/50 border-white/20"
-                  disabled={loading}
+                  disabled={formSubmitting}
                 />
               </div>
               
               <Button 
                 type="submit" 
                 className="w-full bg-[#D946EF] hover:bg-[#D946EF]/90"
-                disabled={loading}
+                disabled={formSubmitting}
               >
-                {loading ? (
+                {formSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Caricamento...
@@ -175,7 +178,7 @@ const Auth = () => {
               <button 
                 onClick={() => setIsSignUp(!isSignUp)}
                 className="text-[#D946EF] hover:underline text-sm"
-                disabled={loading}
+                disabled={formSubmitting}
               >
                 {isSignUp 
                   ? "Hai già un account? Accedi" 

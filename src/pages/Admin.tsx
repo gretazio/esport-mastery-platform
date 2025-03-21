@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -13,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import Navbar from "../components/Navbar";
+import { normalizeImageUrl, getStorageImageUrl } from "../utils/imageUtils";
+import useDebouncedEffect from "../hooks/use-debounced-effect";
 
 interface Member {
   id: string;
@@ -67,14 +70,17 @@ const Admin = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState("members");
 
-  useEffect(() => {
+  // Use a debounced effect to avoid race conditions in the fetch
+  useDebouncedEffect(() => {
     const fetchData = async () => {
       if (!user || !isAdmin) return;
       
       try {
+        console.time("Admin data fetch");
         setLoadingData(true);
-        console.log("Fetching admin data...");
+        console.log("Fetching admin data with UID:", user.id);
         
+        // Fetch members
         const { data: membersData, error: membersError } = await supabase
           .from('members')
           .select('*')
@@ -84,6 +90,7 @@ const Admin = () => {
         console.log("Loaded members:", membersData?.length || 0);
         setMembers(membersData || []);
 
+        // Fetch games
         const { data: gamesData, error: gamesError } = await supabase
           .from('best_games')
           .select('*')
@@ -92,6 +99,8 @@ const Admin = () => {
         if (gamesError) throw gamesError;
         console.log("Loaded games:", gamesData?.length || 0);
         setGames(gamesData || []);
+        
+        console.timeEnd("Admin data fetch");
       } catch (error: any) {
         console.error("Error loading admin data:", error);
         toast({
@@ -107,13 +116,74 @@ const Admin = () => {
     if (user && isAdmin) {
       fetchData();
     }
-  }, [user, isAdmin, toast]);
+  }, 300, [user?.id, isAdmin]); // 300ms debounce, deps array includes user ID and admin status
 
+  // Set up realtime subscriptions
   useEffect(() => {
+    if (!user || !isAdmin) return;
+    
+    // Members table subscription
+    const membersChannel = supabase
+      .channel('members_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'members'
+      }, (payload) => {
+        console.log('Realtime update for members:', payload);
+        
+        // Refresh the entire list when changes occur
+        supabase
+          .from('members')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .then(({ data }) => {
+            if (data) {
+              console.log(`Updated members list, now ${data.length} items`);
+              setMembers(data);
+            }
+          });
+      })
+      .subscribe();
+      
+    // Games table subscription
+    const gamesChannel = supabase
+      .channel('games_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'best_games'
+      }, (payload) => {
+        console.log('Realtime update for games:', payload);
+        
+        // Refresh the entire list when changes occur
+        supabase
+          .from('best_games')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .then(({ data }) => {
+            if (data) {
+              console.log(`Updated games list, now ${data.length} items`);
+              setGames(data);
+            }
+          });
+      })
+      .subscribe();
+
+    // Cleanup function
+    return () => {
+      supabase.removeChannel(membersChannel);
+      supabase.removeChannel(gamesChannel);
+    };
+  }, [user?.id, isAdmin]);
+
+  // Fetch admin users separately to avoid blocking the main data fetch
+  useDebouncedEffect(() => {
     const fetchUsers = async () => {
       if (!isAdmin || !user) return;
       
       try {
+        console.time("Admin users fetch");
         setLoadingUsers(true);
         
         const { data: adminData, error: adminError } = await supabase
@@ -134,6 +204,8 @@ const Admin = () => {
         
         setRegisteredUsers(processedUsers);
         console.log("Using admin users for registered users:", processedUsers.length || 0);
+        
+        console.timeEnd("Admin users fetch");
       } catch (error: any) {
         console.error("Errore nel caricamento degli utenti:", error);
         toast({
@@ -149,31 +221,16 @@ const Admin = () => {
     if (isAdmin && user) {
       fetchUsers();
     }
-  }, [isAdmin, user, toast]);
+  }, 500, [isAdmin, user?.id]); // 500ms debounce, increased to avoid collisions with main data fetch
 
   const handleEditMember = (member: Member) => {
     const formattedMember = {
       ...member,
-      image: formatImageUrl(member.image)
+      image: normalizeImageUrl(member.image)
     };
     setEditMember(formattedMember);
     setAchievements(member.achievements.join('\n'));
     setDialogOpen(true);
-  };
-
-  const formatImageUrl = (url: string) => {
-    if (url && url.includes('imgur.com') && !url.startsWith('http')) {
-      return `https://${url}`;
-    }
-    return url;
-  };
-
-  const normalizeImageUrl = (url: string) => {
-    if (url && url.includes('imgur.com') && url.startsWith('https://')) {
-      const imgurDomain = url.indexOf('imgur.com');
-      return url.substring(imgurDomain - 4);
-    }
-    return url;
   };
 
   const handleSaveMember = async () => {
@@ -185,7 +242,7 @@ const Admin = () => {
         .map(item => item.trim())
         .filter(item => item !== '');
 
-      const normalizedImage = normalizeImageUrl(editMember.image);
+      const normalizedImage = getStorageImageUrl(editMember.image);
 
       const updatedMember = {
         ...editMember,
@@ -276,7 +333,12 @@ const Admin = () => {
   };
 
   const handleEditGame = (game: Game) => {
-    setEditGame(game);
+    // Update the game with normalized image URL
+    const updatedGame = {
+      ...game,
+      image_url: normalizeImageUrl(game.image_url)
+    };
+    setEditGame(updatedGame);
     setDialogOpen(true);
   };
 
@@ -284,8 +346,14 @@ const Admin = () => {
     if (!editGame) return;
 
     try {
+      // Store the image URL in a normalized format
+      const normalizedGame = {
+        ...editGame,
+        image_url: getStorageImageUrl(editGame.image_url)
+      };
+
       if (editGame.id === 'new') {
-        const { id, ...newGame } = editGame;
+        const { id, ...newGame } = normalizedGame;
         
         const { data, error } = await supabase
           .from('best_games')
@@ -302,13 +370,13 @@ const Admin = () => {
       } else {
         const { error } = await supabase
           .from('best_games')
-          .update(editGame)
+          .update(normalizedGame)
           .eq('id', editGame.id);
 
         if (error) throw error;
         
         setGames(prev => 
-          prev.map(item => item.id === editGame.id ? editGame : item)
+          prev.map(item => item.id === editGame.id ? normalizedGame : item)
         );
         toast({
           title: "Gioco aggiornato",
