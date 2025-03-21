@@ -19,7 +19,7 @@ export const normalizeImageUrl = (url: string): string => {
   
   // Handle Imgur URLs in various formats
   if (url.includes('imgur.com') || url.includes('i.imgur')) {
-    // Direct Imgur ID
+    // Direct Imgur ID without domain
     if (!url.includes('.') && !url.includes('/')) {
       return `https://i.imgur.com/${url}.jpg`;
     }
@@ -29,9 +29,14 @@ export const normalizeImageUrl = (url: string): string => {
       return `https://${url}`;
     }
     
-    // imgur.com without protocol
+    // imgur.com without protocol but with path
     if (url.startsWith('imgur.com/')) {
-      return `https://${url}`;
+      // Convert imgur.com/abc to https://i.imgur.com/abc.jpg
+      const imgurId = url.replace('imgur.com/', '');
+      if (!imgurId.includes('.')) {
+        return `https://i.imgur.com/${imgurId}.jpg`;
+      }
+      return `https://i.${url}`;
     }
     
     // Just add https:// prefix
@@ -50,6 +55,11 @@ export const normalizeImageUrl = (url: string): string => {
   if (url.startsWith('/')) {
     // Relative path from root
     return url;
+  }
+  
+  // Unknown format, try as Imgur ID
+  if (!url.includes('/') && !url.includes('.')) {
+    return `https://i.imgur.com/${url}.jpg`;
   }
   
   // Unknown format, try direct URL
