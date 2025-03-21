@@ -1,0 +1,8 @@
+// ...existing code...
+.navbar a,
+.navbar button,
+.navbar-link {
+  cursor: pointer;
+  text-decoration: none;
+}
+// ...existing code...
