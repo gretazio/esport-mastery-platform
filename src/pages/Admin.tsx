@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -70,7 +69,6 @@ const Admin = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState("members");
 
-  // Use a debounced effect to avoid race conditions in the fetch
   useDebouncedEffect(() => {
     const fetchData = async () => {
       if (!user || !isAdmin) return;
@@ -116,9 +114,8 @@ const Admin = () => {
     if (user && isAdmin) {
       fetchData();
     }
-  }, 300, [user?.id, isAdmin]); // 300ms debounce, deps array includes user ID and admin status
+  }, 300, [user?.id, isAdmin]);
 
-  // Set up realtime subscriptions
   useEffect(() => {
     if (!user || !isAdmin) return;
     
@@ -177,7 +174,6 @@ const Admin = () => {
     };
   }, [user?.id, isAdmin]);
 
-  // Fetch admin users separately to avoid blocking the main data fetch
   useDebouncedEffect(() => {
     const fetchUsers = async () => {
       if (!isAdmin || !user) return;
@@ -221,7 +217,7 @@ const Admin = () => {
     if (isAdmin && user) {
       fetchUsers();
     }
-  }, 500, [isAdmin, user?.id]); // 500ms debounce, increased to avoid collisions with main data fetch
+  }, 500, [isAdmin, user?.id]);
 
   const handleEditMember = (member: Member) => {
     const formattedMember = {
@@ -582,57 +578,48 @@ const Admin = () => {
                 {loadingData ? (
                   <p>Caricamento membri...</p>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {members.map(member => (
                       <motion.div
                         key={member.id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="bg-black/20 rounded-lg border border-white/10 p-4 flex flex-col md:flex-row gap-4"
+                        className="bg-black/20 rounded-lg border border-white/10 p-4"
                       >
-                        <div className="md:w-1/4">
-                          <img 
-                            src={member.image} 
-                            alt={member.name}
-                            className="w-full h-auto rounded-md"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/placeholder.svg';
-                            }}
-                          />
-                        </div>
-                        
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold">{member.name}</h3>
-                          <p className="text-[#D946EF] mb-2">{member.role}</p>
-                          {member.join_date && (
-                            <p className="text-gray-400 text-sm mb-2">Iscritto dal: {member.join_date}</p>
-                          )}
+                        <div className="flex flex-col md:flex-row justify-between">
+                          <div>
+                            <h3 className="text-xl font-bold">{member.name}</h3>
+                            <p className="text-[#D946EF] mb-2">{member.role}</p>
+                            {member.join_date && (
+                              <p className="text-gray-400 text-sm mb-2">Iscritto dal: {member.join_date}</p>
+                            )}
+                            
+                            <h4 className="font-semibold mb-1">Achievements:</h4>
+                            <ul className="list-disc list-inside space-y-1">
+                              {member.achievements.map((achievement, index) => (
+                                <li key={index} className="text-sm text-gray-300">{achievement}</li>
+                              ))}
+                            </ul>
+                          </div>
                           
-                          <h4 className="font-semibold mb-1">Achievements:</h4>
-                          <ul className="list-disc list-inside space-y-1">
-                            {member.achievements.map((achievement, index) => (
-                              <li key={index}>{achievement}</li>
-                            ))}
-                          </ul>
-                        </div>
-                        
-                        <div className="flex md:flex-col gap-2 justify-end">
-                          <Button 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => handleEditMember(member)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          
-                          <Button 
-                            variant="outline" 
-                            size="icon"
-                            className="text-red-500 hover:text-red-300"
-                            onClick={() => handleDeleteMember(member.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex md:flex-col gap-2 mt-4 md:mt-0">
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              onClick={() => handleEditMember(member)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              className="text-red-500 hover:text-red-300"
+                              onClick={() => handleDeleteMember(member.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </motion.div>
                     ))}
@@ -653,73 +640,64 @@ const Admin = () => {
                 {loadingData ? (
                   <p>Caricamento games...</p>
                 ) : (
-                  <div className="space-y-8">
+                  <div className="space-y-4">
                     {games.map(game => (
                       <motion.div
                         key={game.id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="bg-black/20 rounded-lg border border-white/10 p-4 flex flex-col md:flex-row gap-4"
+                        className="bg-black/20 rounded-lg border border-white/10 p-4"
                       >
-                        <div className="md:w-1/3">
-                          <img 
-                            src={game.image_url} 
-                            alt={game.players}
-                            className="w-full h-auto rounded-md"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/placeholder.svg';
-                            }}
-                          />
-                        </div>
-                        
-                        <div className="flex-1">
-                          <div className="flex flex-wrap gap-2 mb-2">
-                            <span className="inline-block px-3 py-1 bg-jf-blue/20 text-jf-blue rounded-full text-sm font-medium">
-                              {game.tournament}
-                            </span>
-                            <span className="inline-block px-3 py-1 bg-[#D946EF]/20 text-[#D946EF] rounded-full text-sm font-medium">
-                              {game.phase}
-                            </span>
-                            <span className="inline-block px-3 py-1 bg-jf-purple/20 text-jf-purple rounded-full text-sm font-medium">
-                              {game.format}
-                            </span>
+                        <div className="flex flex-col md:flex-row justify-between">
+                          <div>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              <span className="inline-block px-3 py-1 bg-jf-blue/20 text-jf-blue rounded-full text-sm font-medium">
+                                {game.tournament}
+                              </span>
+                              <span className="inline-block px-3 py-1 bg-[#D946EF]/20 text-[#D946EF] rounded-full text-sm font-medium">
+                                {game.phase}
+                              </span>
+                              <span className="inline-block px-3 py-1 bg-jf-purple/20 text-jf-purple rounded-full text-sm font-medium">
+                                {game.format}
+                              </span>
+                            </div>
+                            
+                            <h3 className="text-xl font-bold mb-2">{game.players}</h3>
+                            
+                            <h4 className="font-semibold mb-1 text-sm">Descrizione (IT):</h4>
+                            <p className="text-gray-300 mb-2 text-sm">{game.description_it}</p>
+                            
+                            <h4 className="font-semibold mb-1 text-sm">Descrizione (EN):</h4>
+                            <p className="text-gray-300 mb-2 text-sm">{game.description_en}</p>
+                            
+                            <a 
+                              href={game.replay_url} 
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#D946EF] hover:underline text-sm"
+                            >
+                              Link al replay
+                            </a>
                           </div>
                           
-                          <h3 className="text-xl font-bold mb-2">{game.players}</h3>
-                          
-                          <h4 className="font-semibold mb-1">Descrizione (IT):</h4>
-                          <p className="text-gray-300 mb-2">{game.description_it}</p>
-                          
-                          <h4 className="font-semibold mb-1">Descrizione (EN):</h4>
-                          <p className="text-gray-300 mb-2">{game.description_en}</p>
-                          
-                          <a 
-                            href={game.replay_url} 
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#D946EF] hover:underline"
-                          >
-                            Link al replay
-                          </a>
-                        </div>
-                        
-                        <div className="flex md:flex-col gap-2 justify-end">
-                          <Button 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => handleEditGame(game)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          
-                          <Button 
-                            variant="outline" 
-                            size="icon"
-                            className="text-red-500 hover:text-red-300"
-                            onClick={() => handleDeleteGame(game.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex md:flex-col gap-2 mt-4 md:mt-0">
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              onClick={() => handleEditGame(game)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              className="text-red-500 hover:text-red-300"
+                              onClick={() => handleDeleteGame(game.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </motion.div>
                     ))}
@@ -966,52 +944,4 @@ const Admin = () => {
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="description_it">Descrizione (IT)</Label>
-                <Textarea
-                  id="description_it"
-                  value={editGame.description_it}
-                  onChange={(e) => setEditGame({...editGame, description_it: e.target.value})}
-                  rows={3}
-                  className="bg-black/50 border-white/20"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="description_en">Descrizione (EN)</Label>
-                <Textarea
-                  id="description_en"
-                  value={editGame.description_en}
-                  onChange={(e) => setEditGame({...editGame, description_en: e.target.value})}
-                  rows={3}
-                  className="bg-black/50 border-white/20"
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDialogOpen(false);
-                  setEditGame(null);
-                }}
-              >
-                <X className="mr-2 h-4 w-4" /> Annulla
-              </Button>
-              
-              <Button 
-                className="bg-[#D946EF] hover:bg-[#D946EF]/90"
-                onClick={handleSaveGame}
-              >
-                <Save className="mr-2 h-4 w-4" /> Salva
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-    </div>
-  );
-};
-
-export default Admin;
+              <div className="space-
