@@ -6,7 +6,7 @@ import PlayerCard from "./PlayerCard";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ArrowRight } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 // The members from the database have a different structure
@@ -87,9 +87,9 @@ const TopMembers = () => {
   // Handle loading state
   if (loading) {
     return (
-      <section className="py-16 md:py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
+      <section id="top-players" className="py-16 px-4 md:px-6 relative z-10 overflow-hidden">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
             <motion.h2 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -102,28 +102,16 @@ const TopMembers = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-gray-400 max-w-2xl mx-auto"
+              className="text-gray-300 max-w-2xl mx-auto"
             >
               {translations.topMembersDescription}
             </motion.p>
           </div>
           
-          <div className="space-y-12">
-            {[1, 2, 3].map((_, index) => (
-              <div key={index} className="flex flex-col md:flex-row gap-6">
-                <div className="shrink-0 md:w-1/3">
-                  <Skeleton className="w-full aspect-video rounded-md" />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-8 w-1/3" />
-                  <Skeleton className="h-4 w-1/4" />
-                  <Skeleton className="h-4 w-1/5 mt-4" />
-                  <div className="space-y-2 mt-4">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </div>
-                </div>
+          <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-16">
+            {[1, 2, 3, 4].map((_, index) => (
+              <div key={index}>
+                <Skeleton className="h-[300px] w-full rounded-lg" />
               </div>
             ))}
           </div>
@@ -135,8 +123,8 @@ const TopMembers = () => {
   // Handle error state
   if (error) {
     return (
-      <section className="py-16 md:py-20">
-        <div className="container mx-auto px-4">
+      <section id="top-players" className="py-16 px-4 md:px-6 relative z-10 overflow-hidden">
+        <div className="container mx-auto">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
               {translations.topMembers}
@@ -159,9 +147,9 @@ const TopMembers = () => {
   // If no members are found and no error occurred
   if (members.length === 0) {
     return (
-      <section className="py-16 md:py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
+      <section id="top-players" className="py-16 px-4 md:px-6 relative z-10 overflow-hidden">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
             <motion.h2 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -174,7 +162,7 @@ const TopMembers = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-gray-400 max-w-2xl mx-auto mb-8"
+              className="text-gray-300 max-w-2xl mx-auto mb-8"
             >
               {translations.topMembersDescription}
             </motion.p>
@@ -188,40 +176,57 @@ const TopMembers = () => {
   }
 
   return (
-    <section className="py-16 md:py-20">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <motion.h2 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-3xl md:text-4xl font-display font-bold mb-4"
-          >
-            {translations.topMembers}
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-gray-400 max-w-2xl mx-auto"
-          >
-            {translations.topMembersDescription}
-          </motion.p>
+    <section id="top-players" className="py-16 px-4 md:px-6 relative z-10 overflow-hidden">
+      <div className="container mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="text-center mb-12"
+        >
+          <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
+            {translations.ourPlayers} <span className="text-[#D946EF]">{translations.playersSection}</span>
+          </h2>
+          <p className="text-gray-300 max-w-2xl mx-auto">{translations.playersDescription}</p>
+        </motion.div>
+
+        {/* Player profiles in a grid - all visible at once */}
+        <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-16">
+          {members.map((member, index) => (
+            <motion.div
+              key={member.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.1, duration: 0.6 }}
+            >
+              <PlayerCard
+                id={member.id}
+                name={member.name}
+                image={member.image}
+                role={member.role}
+                achievements={member.achievements}
+                joinDate={member.join_date}
+                index={index}
+              />
+            </motion.div>
+          ))}
         </div>
         
-        <div>
-          {members.map((member, index) => (
-            <PlayerCard
-              key={member.id}
-              id={member.id}
-              name={member.name}
-              image={member.image}
-              role={member.role}
-              achievements={member.achievements}
-              joinDate={member.join_date}
-              index={index} // Add the index prop
-            />
-          ))}
+        {/* Add button linking to Best Games at the bottom */}
+        <div className="container mx-auto mt-16 text-center">
+          <h3 className="text-2xl font-display font-bold mb-4">{translations.checkBestBattles}</h3>
+          <Button 
+            size="lg" 
+            className="px-6 py-6 bg-[#D946EF] hover:bg-[#D946EF]/90"
+            onClick={() => {
+              window.location.href = '/best-games';
+            }}
+          >
+            {translations.viewBestGames}
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
         </div>
       </div>
     </section>

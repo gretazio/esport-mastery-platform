@@ -1,12 +1,14 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "../integrations/supabase/client";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useLanguage } from "../contexts/LanguageContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
 import useDebouncedEffect from "../hooks/use-debounced-effect";
+import { Button } from "@/components/ui/button";
+import { normalizeImageUrl } from "../utils/imageUtils";
 
 interface Game {
   id: string;
@@ -24,6 +26,7 @@ const BestGames = () => {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const { locale, translations } = useLanguage();
+  const footerRef = useRef<HTMLElement>(null);
 
   // Use debounced effect to fetch games only once
   useDebouncedEffect(() => {
@@ -86,76 +89,129 @@ const BestGames = () => {
     };
   }, []);
 
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  };
+
+  const scrollToFooter = () => {
+    if (footerRef.current) {
+      footerRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-jf-dark text-white">
+    <div className="min-h-screen bg-jf-dark text-white relative">
       <Navbar />
-      
-      <div className="pt-32 pb-24 px-4">
+    
+      <div className="pt-32 pb-24 px-4 md:px-6">
         <div className="container mx-auto">
-          <motion.h1
-            initial={{ opacity: 0, y: -20 }}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-5xl font-display font-bold mb-16 text-center"
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
           >
-            Best <span className="text-[#D946EF]">Games</span>
-          </motion.h1>
-          
+            <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
+              Best <span className="text-[#D946EF]">Games</span>
+            </h1>
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+              {locale === "it" 
+                ? "Una selezione dei migliori match giocati dai Membri della Community nei tornei competitivi." 
+                : "A selection of the best matches played by Community Members in competitive tournaments."}
+            </p>
+            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+              {locale === "it" 
+                ? "Work in progress" 
+                : "Work in progress"}
+            </p>  
+          </motion.div>
+
           {loading ? (
             <div className="flex justify-center items-center py-20">
               <Loader2 className="h-10 w-10 animate-spin text-[#D946EF]" />
             </div>
           ) : games.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-xl text-gray-400">Nessuna partita disponibile al momento.</p>
+              <p className="text-xl text-gray-400">
+                {locale === "it" ? "Nessuna partita disponibile al momento." : "No games available at the moment."}
+              </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-12">
-              {games.map((game) => (
-                <motion.div
+            <div className="space-y-24">
+              {games.map((game, index) => (
+                <motion.div 
                   key={game.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="bg-black/20 rounded-lg border border-white/10 overflow-hidden flex flex-col md:flex-row"
+                  initial={{ opacity: 0, y: 50 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                  className={`flex flex-col ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-12`}
                 >
-                  <div className="md:w-1/3">
-                    <img 
-                      src={game.image_url} 
-                      alt={game.players}
-                      className="w-full h-full object-cover object-center" 
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/placeholder.svg';
-                      }}
-                    />
+                  {/* Game Screenshot */}
+                  <div className="lg:w-1/2">
+                    <div className="relative group">
+                      <div className="absolute -inset-4 bg-[#D946EF]/20 rounded-xl blur-xl z-0 opacity-70"></div>
+                      <a 
+                        href={game.replay_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="relative block z-10 overflow-hidden rounded-xl border border-white/10"
+                      >
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="bg-[#D946EF] rounded-full p-4 transform scale-0 group-hover:scale-100 transition-transform">
+                            <ExternalLink size={28} />
+                          </div>
+                        </div>
+                        <img 
+                          src={normalizeImageUrl(game.image_url)} 
+                          alt={`${game.tournament} - ${game.players}`} 
+                          className="w-full h-auto rounded-xl transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                          onError={(e) => {
+                            console.error(`Failed to load image: ${game.image_url}`);
+                            (e.target as HTMLImageElement).src = '/placeholder.svg';
+                          }}
+                        />
+                      </a>
+                    </div>
                   </div>
                   
-                  <div className="p-6 flex-1">
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <span className="inline-block px-3 py-1 bg-jf-blue/20 text-jf-blue rounded-full text-xs font-medium">
-                        {game.tournament}
-                      </span>
-                      <span className="inline-block px-3 py-1 bg-[#D946EF]/20 text-[#D946EF] rounded-full text-xs font-medium">
-                        {game.phase}
-                      </span>
-                      <span className="inline-block px-3 py-1 bg-jf-purple/20 text-jf-purple rounded-full text-xs font-medium">
-                        {game.format}
-                      </span>
+                  {/* Game Info */}
+                  <div className="lg:w-1/2">
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-3">
+                        <span className="inline-block px-3 py-1 bg-jf-blue/20 text-jf-blue rounded-full text-sm font-medium">
+                          {game.tournament}
+                        </span>
+                        <span className="inline-block px-3 py-1 bg-[#D946EF]/20 text-[#D946EF] rounded-full text-sm font-medium">
+                          {game.phase}
+                        </span>
+                        <span className="inline-block px-3 py-1 bg-jf-purple/20 text-jf-purple rounded-full text-sm font-medium">
+                          {game.format}
+                        </span>
+                      </div>
+                      
+                      <h2 className="text-3xl font-display font-bold">
+                        {game.players}
+                      </h2>
+                      
+                      <p className="text-lg text-gray-300">
+                        {locale === 'it' ? game.description_it : game.description_en}
+                      </p>
+                      
+                      <a 
+                        href={game.replay_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-[#D946EF] hover:text-[#D946EF]/80 transition-colors mt-4"
+                      >
+                        {locale === "it" ? "Guarda il replay" : "Watch replay"} 
+                        <ExternalLink size={18} className="ml-2" />
+                      </a>
                     </div>
-                    
-                    <h2 className="text-2xl font-bold mb-4">{game.players}</h2>
-                    
-                    <p className="text-gray-300 mb-6">
-                      {locale === 'it' ? game.description_it : game.description_en}
-                    </p>
-                    
-                    <a
-                      href={game.replay_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block px-6 py-2 bg-[#D946EF] text-white rounded-full hover:bg-[#D946EF]/90 transition-colors"
-                    >
-                      {locale === 'it' ? 'Guarda Replay' : 'Watch Replay'}
-                    </a>
                   </div>
                 </motion.div>
               ))}
@@ -164,7 +220,31 @@ const BestGames = () => {
         </div>
       </div>
       
-      <Footer />
+      {/* Navigation buttons */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+        {/* Always show both buttons */}
+        <Button 
+          onClick={scrollToTop}
+          className="rounded-full w-12 h-12 bg-[#D946EF] hover:bg-[#D946EF]/90 shadow-lg"
+          size="icon"
+          aria-label="Torna all'inizio"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </Button>
+
+        <Button 
+          onClick={scrollToFooter}
+          className="rounded-full w-12 h-12 bg-[#D946EF] hover:bg-[#D946EF]/90 shadow-lg"
+          size="icon"
+          aria-label="Vai al fondo"
+        >
+          <ArrowDown className="h-5 w-5" />
+        </Button>
+      </div>
+      
+      <footer ref={footerRef}>
+        <Footer />
+      </footer>
     </div>
   );
 };
