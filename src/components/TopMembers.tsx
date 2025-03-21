@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, ArrowRight } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
 
 // The members from the database have a different structure
 interface MemberData {
@@ -22,6 +22,7 @@ interface MemberData {
 const TopMembers = () => {
   const { translations } = useLanguage();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [members, setMembers] = useState<MemberData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +39,7 @@ const TopMembers = () => {
       const { data, error } = await supabase
         .from('members')
         .select('*')
-        .order('name', { ascending: true })
-        .limit(30) // Limit the number of members to improve performance
+        .order('created_at', { ascending: true })
         .throwOnError(); // This will convert any error to an exception
       
       if (error) {
@@ -220,9 +220,7 @@ const TopMembers = () => {
           <Button 
             size="lg" 
             className="px-6 py-6 bg-[#D946EF] hover:bg-[#D946EF]/90"
-            onClick={() => {
-              window.location.href = '/best-games';
-            }}
+            onClick={() => navigate('/best-games')}
           >
             {translations.viewBestGames}
             <ArrowRight className="ml-2 h-5 w-5" />

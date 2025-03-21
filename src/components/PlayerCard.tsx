@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { normalizeImageUrl } from "../utils/imageUtils";
 
@@ -24,8 +23,8 @@ const PlayerCard = ({ name, image, achievements, role, index, id, joinDate }: Pl
   const normalizedImageUrl = normalizeImageUrl(image);
 
   return (
-    <div className="flex flex-col md:flex-row items-start gap-6">
-      <div className="w-full md:w-1/3 aspect-square overflow-hidden rounded-lg">
+    <div className="flex flex-col md:flex-row gap-6 mb-12">
+      <div className="shrink-0 md:w-1/3 aspect-square overflow-hidden rounded-lg border border-white/10 shadow-md">
         <img
           src={imageError ? "/placeholder.svg" : normalizedImageUrl}
           alt={name}
@@ -34,12 +33,12 @@ const PlayerCard = ({ name, image, achievements, role, index, id, joinDate }: Pl
         />
       </div>
       <div className="flex-1">
-        <h3 className="text-xl font-bold mb-1">{name}</h3>
-        <p className="text-[#D946EF] text-sm mb-3">{role}</p>
+        <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">{name}</h3>
+        <p className="text-[#D946EF] font-medium mb-2">{role}</p>
         {joinDate && <p className="text-gray-400 text-sm mb-3">Join Date: {joinDate}</p>}
-        <ul className="text-sm text-gray-400 space-y-1">
+        <ul className="text-base text-gray-300 space-y-2 mt-2">
           {achievements.map((achievement, i) => (
-            <li key={i} className="flex items-center">
+            <li key={i} className="flex items-start">
               <span className="text-[#D946EF] mr-2">•</span>
               <span>{achievement}</span>
             </li>

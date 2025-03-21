@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "../integrations/supabase/client";
@@ -27,6 +26,10 @@ const BestGames = () => {
   const [loading, setLoading] = useState(true);
   const { locale, translations } = useLanguage();
   const footerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Use debounced effect to fetch games only once
   useDebouncedEffect(() => {
@@ -129,11 +132,7 @@ const BestGames = () => {
             </p>  
           </motion.div>
 
-          {loading ? (
-            <div className="flex justify-center items-center py-20">
-              <Loader2 className="h-10 w-10 animate-spin text-[#D946EF]" />
-            </div>
-          ) : games.length === 0 ? (
+          {loading ? null : games.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-xl text-gray-400">
                 {locale === "it" ? "Nessuna partita disponibile al momento." : "No games available at the moment."}

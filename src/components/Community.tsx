@@ -1,11 +1,12 @@
-
 import { motion } from "framer-motion";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Users, ExternalLink, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Community = () => {
   const { translations } = useLanguage();
+  const navigate = useNavigate();
   
   const scrollToPlayers = () => {
     document.getElementById('top-players')?.scrollIntoView({ behavior: 'smooth' });
@@ -63,7 +64,7 @@ const Community = () => {
               </Button>
               <Button 
                 className="bg-jf-blue/10 hover:bg-jf-blue/20 text-white border border-jf-blue/30 transition-colors"
-                onClick={() => window.location.href = '/best-games'}
+                onClick={() => navigate('/best-games')}
               >
                 <ExternalLink className="mr-2 h-5 w-5" />
                 Best Games

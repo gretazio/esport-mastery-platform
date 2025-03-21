@@ -944,4 +944,52 @@ const Admin = () => {
                 </div>
               </div>
               
-              <div className="space-
+              <div className="space-y-2">
+                <Label htmlFor="description_it">Descrizione (IT)</Label>
+                <Textarea
+                  id="description_it"
+                  value={editGame.description_it}
+                  onChange={(e) => setEditGame({...editGame, description_it: e.target.value})}
+                  rows={3}
+                  className="bg-black/50 border-white/20"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description_en">Descrizione (EN)</Label>
+                <Textarea
+                  id="description_en"
+                  value={editGame.description_en}
+                  onChange={(e) => setEditGame({...editGame, description_en: e.target.value})}
+                  rows={3}
+                  className="bg-black/50 border-white/20"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDialogOpen(false);
+                  setEditGame(null);
+                }}
+              >
+                <X className="mr-2 h-4 w-4" /> Annulla
+              </Button>
+              
+              <Button 
+                className="bg-[#D946EF] hover:bg-[#D946EF]/90"
+                onClick={handleSaveGame}
+              >
+                <Save className="mr-2 h-4 w-4" /> Salva
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+};
+
+export default Admin;

@@ -2,9 +2,11 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { useLanguage } from "../contexts/LanguageContext";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
   const { translations } = useLanguage();
+  const navigate = useNavigate();
   
   const scrollToCommunity = () => {
     document.getElementById('community')?.scrollIntoView({ behavior: 'smooth' });
@@ -74,7 +76,7 @@ const Hero = () => {
               size="lg" 
               className="px-6 py-6 bg-jf-blue hover:bg-jf-blue/90"
               onClick={() => {
-                window.location.href = '/best-games';
+                navigate('/best-games');
               }}
             >
               Best Games
