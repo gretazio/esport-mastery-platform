@@ -210,7 +210,7 @@ const TopMembers = () => {
         </div>
         
         <div>
-          {members.map((member) => (
+          {members.map((member, index) => (
             <PlayerCard
               key={member.id}
               id={member.id}
@@ -219,6 +219,7 @@ const TopMembers = () => {
               role={member.role}
               achievements={member.achievements}
               joinDate={member.join_date}
+              index={index} // Add the index prop
             />
           ))}
         </div>
