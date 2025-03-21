@@ -10,6 +10,7 @@ type PlayerCardProps = {
   role: string;
   index: number;
   id?: string; // Added id as an optional prop
+  joinDate?: string; // Added joinDate as an optional prop
 };
 
 const PlayerCard = ({ name, image, achievements, role, index }: PlayerCardProps) => {
