@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -43,6 +42,13 @@ interface AdminUser {
   created_at: string;
 }
 
+interface RegisteredUser {
+  id: string;
+  email: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 const Admin = () => {
   const { user, isAdmin, loading, signOut, checkIsAdmin } = useAuth();
   const navigate = useNavigate();
@@ -51,7 +57,7 @@ const Admin = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [games, setGames] = useState<Game[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-  const [registeredUsers, setRegisteredUsers] = useState<AdminUser[]>([]);
+  const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [loadingUsers, setLoadingUsers] = useState(true);
   
@@ -119,10 +125,15 @@ const Admin = () => {
         setAdminUsers(adminData || []);
         console.log("Loaded admin users:", adminData?.length || 0);
         
-        // Use admin data as our source of registered users
-        // This avoids using the admin API which requires higher privileges
-        setRegisteredUsers(adminData || []);
-        console.log("Using admin users for registered users:", adminData?.length || 0);
+        const processedUsers: RegisteredUser[] = adminData?.map(admin => ({
+          id: admin.id,
+          email: admin.email,
+          is_active: admin.is_active,
+          created_at: admin.created_at
+        })) || [];
+        
+        setRegisteredUsers(processedUsers);
+        console.log("Using admin users for registered users:", processedUsers.length || 0);
       } catch (error: any) {
         console.error("Errore nel caricamento degli utenti:", error);
         toast({
@@ -141,7 +152,6 @@ const Admin = () => {
   }, [isAdmin, user, toast]);
 
   const handleEditMember = (member: Member) => {
-    // Ensure image URL is properly displayed in the edit form
     const formattedMember = {
       ...member,
       image: formatImageUrl(member.image)
@@ -151,21 +161,17 @@ const Admin = () => {
     setDialogOpen(true);
   };
 
-  // Function to format image URL for display and editing
   const formatImageUrl = (url: string) => {
-    // If it's a short Imgur URL, make sure it's complete
     if (url && url.includes('imgur.com') && !url.startsWith('http')) {
       return `https://${url}`;
     }
     return url;
   };
 
-  // Function to ensure image URL is properly stored
   const normalizeImageUrl = (url: string) => {
-    // Clean up URL for storage - remove https:// from Imgur URLs for consistency
     if (url && url.includes('imgur.com') && url.startsWith('https://')) {
       const imgurDomain = url.indexOf('imgur.com');
-      return url.substring(imgurDomain - 4); // Keep 'i.' prefix if it exists
+      return url.substring(imgurDomain - 4);
     }
     return url;
   };
@@ -179,7 +185,6 @@ const Admin = () => {
         .map(item => item.trim())
         .filter(item => item !== '');
 
-      // Normalize the image URL before saving
       const normalizedImage = normalizeImageUrl(editMember.image);
 
       const updatedMember = {

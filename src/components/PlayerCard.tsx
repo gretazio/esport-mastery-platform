@@ -23,37 +23,65 @@ const PlayerCard = ({ id, name, image, role, achievements, joinDate }: PlayerPro
     setImageError(true);
   };
 
-  // Function to ensure the image URL is properly formatted
+  // Enhanced function to handle various image URL formats
   const getFormattedImageUrl = (url: string) => {
     if (!url) return "";
     
-    // If it's just an Imgur ID
-    if (url.match(/^[a-zA-Z0-9]{5,10}$/)) {
-      return `https://i.imgur.com/${url}.jpg`;
+    try {
+      // Check if it's already a valid URL
+      new URL(url);
+      return url;
+    } catch (e) {
+      // If it's not a valid URL, try to format it
+      
+      // If it's just an ID (common for Imgur)
+      if (url.match(/^[a-zA-Z0-9]{5,10}$/)) {
+        return `https://i.imgur.com/${url}.jpg`;
+      }
+      
+      // If it's an Imgur URL without https://
+      if (url.includes('imgur.com') && !url.startsWith('http')) {
+        return `https://${url}`;
+      }
+      
+      // If it's an Imgur URL but missing the direct image part
+      if (url.includes('imgur.com/')) {
+        // Handle gallery URLs
+        if (url.includes('/gallery/') || url.includes('/a/')) {
+          const parts = url.split('/');
+          const imgurId = parts[parts.length - 1].split('.')[0]; // Remove extension if present
+          return `https://i.imgur.com/${imgurId}.jpg`;
+        }
+        
+        // Handle direct Imgur URLs that aren't in i.imgur.com format
+        if (!url.includes('i.imgur.com/')) {
+          const parts = url.split('/');
+          const imgurId = parts[parts.length - 1].split('.')[0]; // Remove extension if present
+          return `https://i.imgur.com/${imgurId}.jpg`;
+        }
+      }
+      
+      // Check for Discord CDN links and ensure they're complete
+      if (url.includes('discord') && url.includes('cdn')) {
+        if (!url.startsWith('http')) {
+          return `https://${url}`;
+        }
+      }
+      
+      // Fallback for any other case
+      return url;
     }
-    
-    // If it's an Imgur URL without https://
-    if (url.includes('imgur.com') && !url.startsWith('http')) {
-      return `https://${url}`;
-    }
-    
-    // If it's an Imgur URL but missing the direct image part
-    if (url.includes('imgur.com/') && !url.includes('i.imgur.com/')) {
-      // Extract the ID from URLs like imgur.com/a/ID or imgur.com/gallery/ID or just imgur.com/ID
-      const parts = url.split('/');
-      const imgurId = parts[parts.length - 1].split('.')[0]; // Remove extension if present
-      return `https://i.imgur.com/${imgurId}.jpg`;
-    }
-    
-    return url;
   };
+  
+  // Get the formatted image URL
+  const formattedImageUrl = getFormattedImageUrl(image);
   
   return (
     <div className="flex flex-col md:flex-row gap-6 mb-12">
       <div className="shrink-0 md:w-1/3">
         {!imageError ? (
           <img 
-            src={getFormattedImageUrl(image)} 
+            src={formattedImageUrl} 
             alt={name} 
             className="rounded-md w-full h-auto shadow-md border border-white/10"
             onError={handleImageError}

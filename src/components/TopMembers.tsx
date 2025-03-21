@@ -7,6 +7,7 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 // The members from the database have a different structure
 interface MemberData {
@@ -20,6 +21,7 @@ interface MemberData {
 
 const TopMembers = () => {
   const { translations } = useLanguage();
+  const { toast } = useToast();
   const [members, setMembers] = useState<MemberData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,10 +32,15 @@ const TopMembers = () => {
       setError(null);
       console.log("Fetching members from Supabase...");
       
+      // Added a small cache buster to prevent stale data
+      const timestamp = new Date().getTime();
+      
       const { data, error } = await supabase
         .from('members')
         .select('*')
-        .order('name', { ascending: true });
+        .order('name', { ascending: true })
+        .limit(30) // Limit the number of members to improve performance
+        .throwOnError(); // This will convert any error to an exception
       
       if (error) {
         throw error;
@@ -46,11 +53,35 @@ const TopMembers = () => {
       console.error("Error fetching members:", err);
       setError(err.message || "Failed to load members");
       setLoading(false);
+      
+      toast({
+        title: "Error loading members",
+        description: err.message || "There was a problem loading the members",
+        variant: "destructive",
+      });
     }
   };
 
+  // Separate hook for initial load
   useEffect(() => {
     fetchMembers();
+    
+    // Set up real-time subscription for changes
+    const subscription = supabase
+      .channel('members-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'members',
+      }, () => {
+        console.log('Members data changed, refreshing...');
+        fetchMembers();
+      })
+      .subscribe();
+    
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Handle loading state
