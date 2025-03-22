@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../integrations/supabase/client";
@@ -586,17 +587,17 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-jf-dark text-jf-light">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pt-32"> {/* Added padding top for navbar */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-jf-light">Admin Dashboard</h1>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate("/")} className="border-jf-light text-jf-light hover:bg-jf-gray/30">
+            <Button variant="outline" onClick={() => navigate("/")} className="border-[#D946EF] text-[#D946EF] hover:bg-[#D946EF]/10">
               Back to Site
             </Button>
             <Button 
               variant="destructive" 
               onClick={signOut} 
-              className="bg-jf-red hover:bg-jf-red/80"
+              className="bg-[#D946EF] hover:bg-[#D946EF]/80 text-white"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Log Out
@@ -605,18 +606,18 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="users" className="mt-8">
-          <TabsList className="mb-8 bg-jf-gray">
-            <TabsTrigger value="users" className="data-[state=active]:bg-jf-blue data-[state=active]:text-white">User Management</TabsTrigger>
-            <TabsTrigger value="members" className="data-[state=active]:bg-jf-blue data-[state=active]:text-white">Team Members</TabsTrigger>
-            <TabsTrigger value="games" className="data-[state=active]:bg-jf-blue data-[state=active]:text-white">Best Games</TabsTrigger>
-            <TabsTrigger value="faqs" className="data-[state=active]:bg-jf-blue data-[state=active]:text-white">FAQs</TabsTrigger>
-            <TabsTrigger value="footer" className="data-[state=active]:bg-jf-blue data-[state=active]:text-white">Footer Resources</TabsTrigger>
+          <TabsList className="mb-8 bg-jf-gray/50 border border-[#D946EF]/20">
+            <TabsTrigger value="users" className="data-[state=active]:bg-[#D946EF] data-[state=active]:text-white">User Management</TabsTrigger>
+            <TabsTrigger value="members" className="data-[state=active]:bg-[#D946EF] data-[state=active]:text-white">Team Members</TabsTrigger>
+            <TabsTrigger value="games" className="data-[state=active]:bg-[#D946EF] data-[state=active]:text-white">Best Games</TabsTrigger>
+            <TabsTrigger value="faqs" className="data-[state=active]:bg-[#D946EF] data-[state=active]:text-white">FAQs</TabsTrigger>
+            <TabsTrigger value="footer" className="data-[state=active]:bg-[#D946EF] data-[state=active]:text-white">Footer Resources</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-jf-light">User Management</h2>
-              <Button variant="outline" onClick={fetchUsers} className="border-jf-light text-jf-light hover:bg-jf-gray/30">
+              <Button variant="outline" onClick={fetchUsers} className="border-[#D946EF] text-[#D946EF] hover:bg-[#D946EF]/10">
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
@@ -624,16 +625,16 @@ const Admin = () => {
 
             {loadingUsers ? (
               <div className="flex justify-center my-12">
-                <Loader2 className="h-8 w-8 animate-spin text-jf-blue" />
+                <Loader2 className="h-8 w-8 animate-spin text-[#D946EF]" />
               </div>
             ) : registeredUsers.length === 0 ? (
-              <div className="text-center py-12 bg-jf-gray/20 rounded-lg">
+              <div className="text-center py-12 bg-jf-gray/20 rounded-lg border border-[#D946EF]/20">
                 <p className="text-lg text-jf-light">No users found</p>
               </div>
             ) : (
               <div className="grid gap-4">
                 {registeredUsers.map((user) => (
-                  <Card key={user.id} className="bg-jf-gray/20 border-jf-gray/50 text-jf-light">
+                  <Card key={user.id} className="bg-jf-gray/30 border-[#D946EF]/30 text-jf-light">
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center">
                         <CardTitle className="text-jf-light">{user.email}</CardTitle>
@@ -643,7 +644,7 @@ const Admin = () => {
                             checked={user.is_active || false}
                             onCheckedChange={() => toggleAdminStatus(user.id, user.is_active || false)}
                             disabled={savingUser[user.id] || (user.id === firstAdminId && user.is_active)}
-                            className="data-[state=checked]:bg-jf-blue"
+                            className="data-[state=checked]:bg-[#D946EF]"
                           />
                           <Label htmlFor={`admin-switch-${user.id}`} className="text-jf-light">
                             {user.is_active ? "Admin" : "Not Admin"}
@@ -659,7 +660,7 @@ const Admin = () => {
                         Created: {new Date(user.created_at).toLocaleDateString()}
                       </p>
                       {user.id === firstAdminId && user.is_active && (
-                        <p className="text-xs mt-2 text-jf-gold">
+                        <p className="text-xs mt-2 text-[#FFBC42]">
                           This is the first admin user and cannot have admin status removed for security reasons.
                         </p>
                       )}
@@ -670,7 +671,7 @@ const Admin = () => {
                         size="sm"
                         onClick={() => handlePasswordReset(user.email)}
                         disabled={resetLoading}
-                        className="border-jf-light/50 text-jf-light hover:bg-jf-gray/30"
+                        className="border-[#D946EF]/50 text-[#D946EF] hover:bg-[#D946EF]/10"
                       >
                         {resetLoading ? (
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -692,12 +693,12 @@ const Admin = () => {
                   <Button onClick={() => {
                     setEditingMember(null);
                     setNewMember(initialMemberState);
-                  }} className="bg-jf-blue hover:bg-jf-blue/80 text-white">
+                  }} className="bg-[#D946EF] hover:bg-[#D946EF]/80 text-white">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Member
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-jf-dark border-jf-gray/50 text-jf-light">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-jf-dark border-[#D946EF]/30 text-jf-light">
                   <DialogHeader>
                     <DialogTitle className="text-jf-light">{editingMember ? "Edit Member" : "Add New Member"}</DialogTitle>
                   </DialogHeader>
@@ -715,6 +716,7 @@ const Admin = () => {
                               setNewMember({ ...newMember, name: e.target.value });
                             }
                           }}
+                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                         />
                       </div>
                       <div className="space-y-2">
@@ -729,6 +731,7 @@ const Admin = () => {
                               setNewMember({ ...newMember, role: e.target.value });
                             }
                           }}
+                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                         />
                       </div>
                     </div>
@@ -745,6 +748,7 @@ const Admin = () => {
                               setNewMember({ ...newMember, image: e.target.value });
                             }
                           }}
+                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                         />
                       </div>
                       <div className="space-y-2">
@@ -760,6 +764,7 @@ const Admin = () => {
                             }
                           }}
                           placeholder="e.g. September 2015"
+                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white placeholder:text-gray-500"
                         />
                       </div>
                     </div>
@@ -776,20 +781,22 @@ const Admin = () => {
                               handleAddAchievement();
                             }
                           }}
+                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white placeholder:text-gray-500"
                         />
-                        <Button type="button" onClick={handleAddAchievement}>
+                        <Button type="button" onClick={handleAddAchievement} className="bg-[#D946EF] hover:bg-[#D946EF]/80">
                           Add
                         </Button>
                       </div>
                       <div className="mt-2">
                         <ul className="space-y-2">
                           {(editingMember ? editingMember.achievements : newMember.achievements).map((achievement, index) => (
-                            <li key={index} className="flex justify-between items-center bg-gray-100 p-2 rounded">
+                            <li key={index} className="flex justify-between items-center bg-jf-gray/30 p-2 rounded text-white">
                               <span>{achievement}</span>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleRemoveAchievement(index)}
+                                className="hover:bg-[#D946EF]/10 hover:text-[#D946EF]"
                               >
                                 <Trash className="h-4 w-4" />
                               </Button>
@@ -800,10 +807,12 @@ const Admin = () => {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setMemberDialogOpen(false)}>
+                    <Button type="button" variant="outline" onClick={() => setMemberDialogOpen(false)} 
+                      className="border-[#D946EF]/50 text-[#D946EF] hover:bg-[#D946EF]/10">
                       Cancel
                     </Button>
-                    <Button type="button" onClick={editingMember ? handleEditMember : handleAddMember}>
+                    <Button type="button" onClick={editingMember ? handleEditMember : handleAddMember}
+                      className="bg-[#D946EF] hover:bg-[#D946EF]/80">
                       {editingMember ? "Update" : "Add"}
                     </Button>
                   </DialogFooter>
@@ -813,16 +822,16 @@ const Admin = () => {
 
             {loadingMembers ? (
               <div className="flex justify-center my-12">
-                <Loader2 className="h-8 w-8 animate-spin text-jf-blue" />
+                <Loader2 className="h-8 w-8 animate-spin text-[#D946EF]" />
               </div>
             ) : members.length === 0 ? (
-              <div className="text-center py-12 bg-jf-gray/20 rounded-lg">
+              <div className="text-center py-12 bg-jf-gray/20 rounded-lg border border-[#D946EF]/20">
                 <p className="text-lg text-jf-light">No members found</p>
               </div>
             ) : (
               <div className="grid gap-4">
                 {members.map((member) => (
-                  <Card key={member.id} className="bg-jf-gray/20 border-jf-gray/50 text-jf-light">
+                  <Card key={member.id} className="bg-jf-gray/30 border-[#D946EF]/30 text-jf-light">
                     <CardHeader className="pb-2">
                       <div className="flex justify-between">
                         <CardTitle>{member.name}</CardTitle>
@@ -834,6 +843,7 @@ const Admin = () => {
                               setEditingMember(member);
                               setMemberDialogOpen(true);
                             }}
+                            className="border-[#D946EF]/50 text-[#D946EF] hover:bg-[#D946EF]/10"
                           >
                             <PenSquare className="h-4 w-4" />
                           </Button>
@@ -841,6 +851,7 @@ const Admin = () => {
                             variant="outline"
                             size="icon"
                             onClick={() => handleDeleteMember(member.id)}
+                            className="border-[#D946EF]/50 text-[#D946EF] hover:bg-[#D946EF]/10"
                           >
                             <Trash className="h-4 w-4" />
                           </Button>
@@ -850,18 +861,18 @@ const Admin = () => {
                     <CardContent>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm font-medium">Role:</p>
+                          <p className="text-sm font-medium text-[#D946EF]">Role:</p>
                           <p className="text-sm">{member.role}</p>
                           
                           {member.join_date && (
                             <>
-                              <p className="text-sm font-medium mt-2">Join Date:</p>
+                              <p className="text-sm font-medium mt-2 text-[#D946EF]">Join Date:</p>
                               <p className="text-sm">{member.join_date}</p>
                             </>
                           )}
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Achievements:</p>
+                          <p className="text-sm font-medium text-[#D946EF]">Achievements:</p>
                           <ul className="text-sm list-disc pl-4">
                             {member.achievements.map((achievement, index) => (
                               <li key={index}>{achievement}</li>
@@ -884,12 +895,12 @@ const Admin = () => {
                   <Button onClick={() => {
                     setEditingGame(null);
                     setNewGame(initialGameState);
-                  }} className="bg-jf-blue hover:bg-jf-blue/80 text-white">
+                  }} className="bg-[#D946EF] hover:bg-[#D946EF]/80 text-white">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Game
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-jf-dark border-jf-gray/50 text-jf-light">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-jf-dark border-[#D946EF]/30 text-jf-light">
                   <DialogHeader>
                     <DialogTitle className="text-jf-light">{editingGame ? "Edit Game" : "Add New Game"}</DialogTitle>
                   </DialogHeader>
@@ -907,6 +918,7 @@ const Admin = () => {
                               setNewGame({ ...newGame, tournament: e.target.value });
                             }
                           }}
+                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                         />
                       </div>
                       <div className="space-y-2">
@@ -922,6 +934,7 @@ const Admin = () => {
                             }
                           }}
                           placeholder="e.g. Player1 vs Player2"
+                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white placeholder:text-gray-500"
                         />
                       </div>
                     </div>
@@ -939,6 +952,7 @@ const Admin = () => {
                             }
                           }}
                           placeholder="e.g. Finals"
+                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white placeholder:text-gray-500"
                         />
                       </div>
                       <div className="space-y-2">
@@ -954,6 +968,7 @@ const Admin = () => {
                             }
                           }}
                           placeholder="e.g. Gen 9 OU"
+                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white placeholder:text-gray-500"
                         />
                       </div>
                     </div>
@@ -970,6 +985,7 @@ const Admin = () => {
                               setNewGame({ ...newGame, image_url: e.target.value });
                             }
                           }}
+                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                         />
                       </div>
                       <div className="space-y-2">
@@ -984,6 +1000,7 @@ const Admin = () => {
                               setNewGame({ ...newGame, replay_url: e.target.value });
                             }
                           }}
+                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                         />
                       </div>
                     </div>
@@ -1000,6 +1017,7 @@ const Admin = () => {
                             setNewGame({ ...newGame, description_it: e.target.value });
                           }
                         }}
+                        className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                       />
                     </div>
                     <div className="space-y-2">
@@ -1015,14 +1033,17 @@ const Admin = () => {
                             setNewGame({ ...newGame, description_en: e.target.value });
                           }
                         }}
+                        className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                       />
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setGameDialogOpen(false)}>
+                    <Button type="button" variant="outline" onClick={() => setGameDialogOpen(false)}
+                      className="border-[#D946EF]/50 text-[#D946EF] hover:bg-[#D946EF]/10">
                       Cancel
                     </Button>
-                    <Button type="button" onClick={editingGame ? handleEditGame : handleAddGame}>
+                    <Button type="button" onClick={editingGame ? handleEditGame : handleAddGame}
+                      className="bg-[#D946EF] hover:bg-[#D946EF]/80">
                       {editingGame ? "Update" : "Add"}
                     </Button>
                   </DialogFooter>
@@ -1032,16 +1053,16 @@ const Admin = () => {
 
             {loadingGames ? (
               <div className="flex justify-center my-12">
-                <Loader2 className="h-8 w-8 animate-spin text-jf-blue" />
+                <Loader2 className="h-8 w-8 animate-spin text-[#D946EF]" />
               </div>
             ) : games.length === 0 ? (
-              <div className="text-center py-12 bg-jf-gray/20 rounded-lg">
+              <div className="text-center py-12 bg-jf-gray/20 rounded-lg border border-[#D946EF]/20">
                 <p className="text-lg text-jf-light">No games found</p>
               </div>
             ) : (
               <div className="grid gap-4">
                 {games.map((game) => (
-                  <Card key={game.id} className="bg-jf-gray/20 border-jf-gray/50 text-jf-light">
+                  <Card key={game.id} className="bg-jf-gray/30 border-[#D946EF]/30 text-jf-light">
                     <CardHeader className="pb-2">
                       <div className="flex justify-between">
                         <CardTitle>{game.players}</CardTitle>
@@ -1053,6 +1074,7 @@ const Admin = () => {
                               setEditingGame(game);
                               setGameDialogOpen(true);
                             }}
+                            className="border-[#D946EF]/50 text-[#D946EF] hover:bg-[#D946EF]/10"
                           >
                             <PenSquare className="h-4 w-4" />
                           </Button>
@@ -1060,31 +1082,32 @@ const Admin = () => {
                             variant="outline"
                             size="icon"
                             onClick={() => handleDeleteGame(game.id)}
+                            className="border-[#D946EF]/50 text-[#D946EF] hover:bg-[#D946EF]/10"
                           >
                             <Trash className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
-                      <CardDescription>
+                      <CardDescription className="text-jf-light/70">
                         {game.tournament} - {game.phase} - {game.format}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm font-medium">English Description:</p>
+                          <p className="text-sm font-medium text-[#D946EF]">English Description:</p>
                           <p className="text-sm">{game.description_en.length > 100 ? `${game.description_en.substring(0, 100)}...` : game.description_en}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Italian Description:</p>
+                          <p className="text-sm font-medium text-[#D946EF]">Italian Description:</p>
                           <p className="text-sm">{game.description_it.length > 100 ? `${game.description_it.substring(0, 100)}...` : game.description_it}</p>
                         </div>
                       </div>
                       <div className="mt-4 grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm font-medium">Replay URL:</p>
+                          <p className="text-sm font-medium text-[#D946EF]">Replay URL:</p>
                           <p className="text-sm truncate">
-                            <a href={game.replay_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                            <a href={game.replay_url} target="_blank" rel="noopener noreferrer" className="text-[#D946EF] hover:underline">
                               {game.replay_url}
                             </a>
                           </p>
