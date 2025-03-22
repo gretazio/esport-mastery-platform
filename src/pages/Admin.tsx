@@ -434,6 +434,24 @@ const Admin = () => {
 
   const handleToggleAdmin = async (userId: string, email: string, isCurrentAdmin: boolean) => {
     try {
+      // Check if this is the first admin
+      const { data: allAdmins, error: countError } = await supabase
+        .from('admins')
+        .select('*')
+        .order('created_at', { ascending: true });
+        
+      if (countError) throw countError;
+      
+      // If this is the first admin and we're trying to disable it, block the operation
+      if (allAdmins && allAdmins.length > 0 && allAdmins[0].id === userId && isCurrentAdmin) {
+        toast({
+          title: "Operazione non consentita",
+          description: "Non è possibile rimuovere il primo amministratore del sistema",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       if (isCurrentAdmin) {
         const { error } = await supabase
           .from('admins')
@@ -505,6 +523,37 @@ const Admin = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchAllUsers = async () => {
+      if (!user || !isAdmin) return;
+      
+      try {
+        // Get all authenticated users from the auth.users table via supabase admin function
+        // This will be managed with Row Level Security in production
+        const { data: usersData, error: usersError } = await supabase
+          .from('authenticated_users_view')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (usersError) throw usersError;
+        
+        setRegisteredUsers(usersData || []);
+        console.log("Loaded all users:", usersData?.length || 0);
+      } catch (error: any) {
+        console.error("Error loading users:", error);
+        toast({
+          title: "Errore",
+          description: "Impossibile caricare gli utenti registrati",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    if (isAdmin && user) {
+      fetchAllUsers();
+    }
+  }, [isAdmin, user?.id]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-jf-dark text-white flex flex-col items-center justify-center">
@@ -563,6 +612,8 @@ const Admin = () => {
                 <TabsTrigger value="members">Membri</TabsTrigger>
                 <TabsTrigger value="games">Best Games</TabsTrigger>
                 <TabsTrigger value="admins">Gestione Amministratori</TabsTrigger>
+                <TabsTrigger value="faq">FAQ</TabsTrigger>
+                <TabsTrigger value="resources">Risorse Footer</TabsTrigger>
               </TabsList>
               
               <TabsContent value="members">
@@ -727,47 +778,103 @@ const Admin = () => {
                   <div className="space-y-8">
                     <div className="bg-black/20 rounded-lg border border-white/10 overflow-hidden">
                       <div className="p-4 bg-black/40 border-b border-white/10">
-                        <h3 className="font-semibold">Utenti Amministratori</h3>
+                        <h3 className="font-semibold">Utenti Registrati</h3>
                       </div>
                       <div className="divide-y divide-white/10">
-                        {adminUsers.length === 0 ? (
-                          <p className="p-4 text-gray-400">Nessun utente amministratore trovato.</p>
+                        {registeredUsers.length === 0 ? (
+                          <p className="p-4 text-gray-400">Nessun utente registrato trovato.</p>
                         ) : (
-                          adminUsers.map(admin => (
-                            <div key={admin.id} className="p-4 flex justify-between items-center">
-                              <div className="flex items-center gap-3">
-                                <User className="h-5 w-5 text-gray-400" />
-                                <div>
-                                  <p className="font-medium">{admin.email}</p>
-                                  <p className="text-xs text-gray-400">
-                                    ID: {admin.id.substring(0, 8)}...
-                                  </p>
+                          registeredUsers.map(user => {
+                            // Check if user is an admin
+                            const adminUser = adminUsers.find(admin => admin.id === user.id);
+                            const isActive = adminUser?.is_active === true;
+                            const isFirstAdmin = adminUsers.length > 0 && adminUsers[0].id === user.id;
+                            
+                            return (
+                              <div key={user.id} className="p-4 flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                  <User className="h-5 w-5 text-gray-400" />
+                                  <div>
+                                    <p className="font-medium">{user.email}</p>
+                                    <p className="text-xs text-gray-400">
+                                      ID: {user.id.substring(0, 8)}...
+                                    </p>
+                                    {isFirstAdmin && (
+                                      <span className="text-xs text-amber-400">Primo amministratore (protetto)</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center">
+                                    <Switch 
+                                      checked={isActive}
+                                      onCheckedChange={() => handleToggleAdmin(user.id, user.email, isActive)}
+                                      disabled={user.id === user?.id}
+                                    />
+                                    <span className="ml-2">
+                                      {isActive ? (
+                                        <span className="text-green-400 flex items-center">
+                                          <UserCheck className="h-4 w-4 mr-1" />
+                                          Admin
+                                        </span>
+                                      ) : "Utente"}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3">
-                                <div className="flex items-center">
-                                  <Switch 
-                                    checked={admin.is_active}
-                                    onCheckedChange={() => handleToggleAdmin(admin.id, admin.email, admin.is_active)}
-                                    disabled={admin.id === user?.id}
-                                  />
-                                  <span className="ml-2">
-                                    {admin.is_active ? (
-                                      <span className="text-green-400 flex items-center">
-                                        <UserCheck className="h-4 w-4 mr-1" />
-                                        Admin
-                                      </span>
-                                    ) : "Utente"}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
                     </div>
                   </div>
                 )}
+              </TabsContent>
+              
+              <TabsContent value="faq">
+                <div className="mb-6 flex justify-end">
+                  <Button 
+                    className="bg-[#D946EF] hover:bg-[#D946EF]/90"
+                    onClick={() => {
+                      // Add FAQ implementation here
+                      toast({
+                        title: "Coming Soon",
+                        description: "La gestione FAQ sarà implementata a breve"
+                      });
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> Aggiungi FAQ
+                  </Button>
+                </div>
+                
+                <div className="bg-black/20 rounded-lg border border-white/10 p-8">
+                  <p className="text-center text-gray-400">
+                    La gestione delle FAQ sarà implementata a breve. Questa funzionalità permetterà di aggiungere, modificare ed eliminare le FAQ mostrate nella pagina FAQ.
+                  </p>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="resources">
+                <div className="mb-6 flex justify-end">
+                  <Button 
+                    className="bg-[#D946EF] hover:bg-[#D946EF]/90"
+                    onClick={() => {
+                      // Add Resources implementation here
+                      toast({
+                        title: "Coming Soon",
+                        description: "La gestione delle risorse del footer sarà implementata a breve"
+                      });
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> Aggiungi Risorsa
+                  </Button>
+                </div>
+                
+                <div className="bg-black/20 rounded-lg border border-white/10 p-8">
+                  <p className="text-center text-gray-400">
+                    La gestione delle risorse del footer sarà implementata a breve. Questa funzionalità permetterà di aggiungere, modificare ed eliminare i link mostrati nel footer del sito.
+                  </p>
+                </div>
               </TabsContent>
             </Tabs>
           )}

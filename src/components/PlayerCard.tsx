@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { normalizeImageUrl } from "../utils/imageUtils";
 
@@ -24,7 +25,7 @@ const PlayerCard = ({ name, image, achievements, role, index, id, joinDate }: Pl
 
   return (
     <div className="flex flex-col md:flex-row gap-6 mb-12">
-      <div className="shrink-0 md:w-1/3 aspect-square overflow-hidden rounded-lg border border-white/10 shadow-md">
+      <div className="shrink-0 w-60 h-60 overflow-hidden rounded-lg border border-white/10 shadow-md">
         <img
           src={imageError ? "/placeholder.svg" : normalizedImageUrl}
           alt={name}
