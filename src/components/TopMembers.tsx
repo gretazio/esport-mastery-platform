@@ -18,6 +18,7 @@ interface MemberData {
   role: string;
   join_date?: string;
   achievements: string[];
+  created_at: string;
 }
 
 const TopMembers = () => {
@@ -73,7 +74,39 @@ const TopMembers = () => {
         table: 'members',
       }, () => {
         console.log('Members data changed, refreshing...');
-        fetchMembers();
+        // Instead of full reload, we'll do a more controlled update
+        supabase
+          .from('members')
+          .select('*')
+          .order('created_at', { ascending: true })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error("Error refreshing members:", error);
+              return;
+            }
+            if (data) {
+              // Maintain order by ID during updates to prevent jumping
+              const updatedMembers = [...members];
+              
+              data.forEach(newMember => {
+                const index = updatedMembers.findIndex(m => m.id === newMember.id);
+                if (index >= 0) {
+                  // Update existing member without changing position
+                  updatedMembers[index] = newMember;
+                } else {
+                  // Add new member
+                  updatedMembers.push(newMember);
+                }
+              });
+              
+              // Remove any members that no longer exist
+              const filteredMembers = updatedMembers.filter(member => 
+                data.some(m => m.id === member.id)
+              );
+              
+              setMembers(filteredMembers);
+            }
+          });
       })
       .subscribe();
     

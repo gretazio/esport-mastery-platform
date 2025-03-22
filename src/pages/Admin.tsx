@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../integrations/supabase/client";
@@ -103,7 +102,7 @@ const Admin = () => {
   
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
   const [gameDialogOpen, setGameDialogOpen] = useState(false);
-  const [achievementInput, setAchievementInput] = useState("");
+  const [achievementsInput, setAchievementsInput] = useState("");
   
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [loadingGames, setLoadingGames] = useState(true);
@@ -307,6 +306,16 @@ const Admin = () => {
         return;
       }
       
+      // First parse the achievements input into an array
+      if (achievementsInput.trim()) {
+        const achievements = achievementsInput
+          .split('\n')
+          .map(a => a.trim())
+          .filter(a => a.length > 0);
+        
+        newMember.achievements = achievements;
+      }
+      
       const { error } = await supabase
         .from('members')
         .insert([newMember]);
@@ -319,6 +328,7 @@ const Admin = () => {
       });
       
       setNewMember(initialMemberState);
+      setAchievementsInput("");
       setMemberDialogOpen(false);
       fetchMembers();
     } catch (error: any) {
@@ -335,14 +345,38 @@ const Admin = () => {
     try {
       if (!editingMember) return;
       
-      const { id, created_at, updated_at, ...updateData } = editingMember;
+      // Get the existing member before update for optimistic update
+      const existingMember = members.find(m => m.id === editingMember.id);
+      if (!existingMember) return;
+      
+      // First parse the achievements input into an array if it exists
+      if (achievementsInput.trim()) {
+        const achievements = achievementsInput
+          .split('\n')
+          .map(a => a.trim())
+          .filter(a => a.length > 0);
+        
+        editingMember.achievements = achievements;
+      }
+      
+      const { id, ...updateData } = editingMember;
+      
+      // Update optimistically
+      const updatedMembers = members.map(m => 
+        m.id === id ? { ...m, ...updateData } : m
+      );
+      setMembers(updatedMembers);
       
       const { error } = await supabase
         .from('members')
         .update(updateData)
         .eq('id', id);
       
-      if (error) throw error;
+      if (error) {
+        // Revert on error
+        setMembers(members);
+        throw error;
+      }
       
       toast({
         title: "Success",
@@ -350,8 +384,23 @@ const Admin = () => {
       });
       
       setEditingMember(null);
+      setAchievementsInput("");
       setMemberDialogOpen(false);
-      fetchMembers();
+      
+      // Refresh members but keep order
+      const { data } = await supabase
+        .from('members')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (data) {
+        const updatedMembersWithRefresh = members.map(m => 
+          m.id === id ? data : m
+        );
+        setMembers(updatedMembersWithRefresh);
+      }
+      
     } catch (error: any) {
       console.error("Error updating member:", error);
       toast({
@@ -479,42 +528,6 @@ const Admin = () => {
     }
   };
 
-  const handleAddAchievement = () => {
-    if (!achievementInput.trim()) return;
-    
-    if (editingMember) {
-      setEditingMember({
-        ...editingMember,
-        achievements: [...editingMember.achievements, achievementInput.trim()],
-      });
-    } else {
-      setNewMember({
-        ...newMember,
-        achievements: [...newMember.achievements, achievementInput.trim()],
-      });
-    }
-    
-    setAchievementInput("");
-  };
-
-  const handleRemoveAchievement = (index: number) => {
-    if (editingMember) {
-      const updatedAchievements = [...editingMember.achievements];
-      updatedAchievements.splice(index, 1);
-      setEditingMember({
-        ...editingMember,
-        achievements: updatedAchievements,
-      });
-    } else {
-      const updatedAchievements = [...newMember.achievements];
-      updatedAchievements.splice(index, 1);
-      setNewMember({
-        ...newMember,
-        achievements: updatedAchievements,
-      });
-    }
-  };
-
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin)) {
       navigate("/");
@@ -564,6 +577,15 @@ const Admin = () => {
       };
     }
   }, [authLoading, user, isAdmin, navigate]);
+
+  // Set achievementsInput when editing a member
+  useEffect(() => {
+    if (editingMember) {
+      setAchievementsInput(editingMember.achievements.join('\n'));
+    } else {
+      setAchievementsInput('');
+    }
+  }, [editingMember]);
 
   if (authLoading) {
     return (
@@ -693,6 +715,7 @@ const Admin = () => {
                   <Button onClick={() => {
                     setEditingMember(null);
                     setNewMember(initialMemberState);
+                    setAchievementsInput("");
                   }} className="bg-[#D946EF] hover:bg-[#D946EF]/80 text-white">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Member
@@ -705,7 +728,7 @@ const Admin = () => {
                   <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Name</Label>
+                        <Label htmlFor="name" className="text-jf-light">Name</Label>
                         <Input
                           id="name"
                           value={editingMember ? editingMember.name : newMember.name}
@@ -720,7 +743,7 @@ const Admin = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="role">Role</Label>
+                        <Label htmlFor="role" className="text-jf-light">Role</Label>
                         <Input
                           id="role"
                           value={editingMember ? editingMember.role : newMember.role}
@@ -737,7 +760,7 @@ const Admin = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="image">Image URL</Label>
+                        <Label htmlFor="image" className="text-jf-light">Image URL</Label>
                         <Input
                           id="image"
                           value={editingMember ? editingMember.image : newMember.image}
@@ -752,7 +775,7 @@ const Admin = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="join_date">Join Date</Label>
+                        <Label htmlFor="join_date" className="text-jf-light">Join Date</Label>
                         <Input
                           id="join_date"
                           value={editingMember ? editingMember.join_date || "" : newMember.join_date || ""}
@@ -769,41 +792,15 @@ const Admin = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>Achievements</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          value={achievementInput}
-                          onChange={(e) => setAchievementInput(e.target.value)}
-                          placeholder="Add achievement"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleAddAchievement();
-                            }
-                          }}
-                          className="bg-jf-gray/30 border-[#D946EF]/30 text-white placeholder:text-gray-500"
-                        />
-                        <Button type="button" onClick={handleAddAchievement} className="bg-[#D946EF] hover:bg-[#D946EF]/80">
-                          Add
-                        </Button>
-                      </div>
-                      <div className="mt-2">
-                        <ul className="space-y-2">
-                          {(editingMember ? editingMember.achievements : newMember.achievements).map((achievement, index) => (
-                            <li key={index} className="flex justify-between items-center bg-jf-gray/30 p-2 rounded text-white">
-                              <span>{achievement}</span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRemoveAchievement(index)}
-                                className="hover:bg-[#D946EF]/10 hover:text-[#D946EF]"
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                      <Label htmlFor="achievements" className="text-jf-light">Achievements (one per line)</Label>
+                      <Textarea
+                        id="achievements"
+                        value={achievementsInput}
+                        onChange={(e) => setAchievementsInput(e.target.value)}
+                        rows={6}
+                        placeholder="Enter achievements, one per line"
+                        className="bg-jf-gray/30 border-[#D946EF]/30 text-white placeholder:text-gray-500"
+                      />
                     </div>
                   </div>
                   <DialogFooter>
@@ -834,7 +831,7 @@ const Admin = () => {
                   <Card key={member.id} className="bg-jf-gray/30 border-[#D946EF]/30 text-jf-light">
                     <CardHeader className="pb-2">
                       <div className="flex justify-between">
-                        <CardTitle>{member.name}</CardTitle>
+                        <CardTitle className="text-jf-light">{member.name}</CardTitle>
                         <div className="flex gap-2">
                           <Button
                             variant="outline"
@@ -907,7 +904,7 @@ const Admin = () => {
                   <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="tournament">Tournament</Label>
+                        <Label htmlFor="tournament" className="text-jf-light">Tournament</Label>
                         <Input
                           id="tournament"
                           value={editingGame ? editingGame.tournament : newGame.tournament}
@@ -922,7 +919,7 @@ const Admin = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="players">Players</Label>
+                        <Label htmlFor="players" className="text-jf-light">Players</Label>
                         <Input
                           id="players"
                           value={editingGame ? editingGame.players : newGame.players}
@@ -940,7 +937,7 @@ const Admin = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="phase">Phase</Label>
+                        <Label htmlFor="phase" className="text-jf-light">Phase</Label>
                         <Input
                           id="phase"
                           value={editingGame ? editingGame.phase : newGame.phase}
@@ -956,7 +953,7 @@ const Admin = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="format">Format</Label>
+                        <Label htmlFor="format" className="text-jf-light">Format</Label>
                         <Input
                           id="format"
                           value={editingGame ? editingGame.format : newGame.format}
@@ -974,7 +971,7 @@ const Admin = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="image_url">Image URL</Label>
+                        <Label htmlFor="image_url" className="text-jf-light">Image URL</Label>
                         <Input
                           id="image_url"
                           value={editingGame ? editingGame.image_url : newGame.image_url}
@@ -989,7 +986,7 @@ const Admin = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="replay_url">Replay URL</Label>
+                        <Label htmlFor="replay_url" className="text-jf-light">Replay URL</Label>
                         <Input
                           id="replay_url"
                           value={editingGame ? editingGame.replay_url : newGame.replay_url}
@@ -1005,7 +1002,7 @@ const Admin = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="description_it">Description (Italian)</Label>
+                      <Label htmlFor="description_it" className="text-jf-light">Description (Italian)</Label>
                       <Textarea
                         id="description_it"
                         rows={3}
@@ -1021,7 +1018,7 @@ const Admin = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="description_en">Description (English)</Label>
+                      <Label htmlFor="description_en" className="text-jf-light">Description (English)</Label>
                       <Textarea
                         id="description_en"
                         rows={3}
@@ -1065,7 +1062,7 @@ const Admin = () => {
                   <Card key={game.id} className="bg-jf-gray/30 border-[#D946EF]/30 text-jf-light">
                     <CardHeader className="pb-2">
                       <div className="flex justify-between">
-                        <CardTitle>{game.players}</CardTitle>
+                        <CardTitle className="text-jf-light">{game.players}</CardTitle>
                         <div className="flex gap-2">
                           <Button
                             variant="outline"

@@ -248,18 +248,18 @@ const FooterResourceManager = () => {
                 position: resources.length,
                 is_active: true,
               });
-            }}>
+            }} className="bg-[#D946EF] hover:bg-[#D946EF]/80 text-white">
               <Plus className="mr-2 h-4 w-4" /> Add Resource
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl bg-jf-dark border-[#D946EF]/30 text-jf-light">
             <DialogHeader>
-              <DialogTitle>{editingResource ? "Edit Resource" : "Add Resource"}</DialogTitle>
+              <DialogTitle className="text-jf-light">{editingResource ? "Edit Resource" : "Add Resource"}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title_it">Title (Italian)</Label>
+                  <Label htmlFor="title_it" className="text-jf-light">Title (Italian)</Label>
                   <Input
                     id="title_it"
                     value={editingResource ? editingResource.title_it : newResource.title_it}
@@ -267,10 +267,11 @@ const FooterResourceManager = () => {
                       ? setEditingResource({...editingResource, title_it: e.target.value})
                       : setNewResource({...newResource, title_it: e.target.value})
                     }
+                    className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="title_en">Title (English)</Label>
+                  <Label htmlFor="title_en" className="text-jf-light">Title (English)</Label>
                   <Input
                     id="title_en"
                     value={editingResource ? editingResource.title_en : newResource.title_en}
@@ -278,12 +279,13 @@ const FooterResourceManager = () => {
                       ? setEditingResource({...editingResource, title_en: e.target.value})
                       : setNewResource({...newResource, title_en: e.target.value})
                     }
+                    className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                   />
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="url">URL</Label>
+                <Label htmlFor="url" className="text-jf-light">URL</Label>
                 <Input
                   id="url"
                   value={editingResource ? editingResource.url : newResource.url}
@@ -291,11 +293,12 @@ const FooterResourceManager = () => {
                     ? setEditingResource({...editingResource, url: e.target.value})
                     : setNewResource({...newResource, url: e.target.value})
                   }
+                  className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="icon">Icon (optional Lucide icon name)</Label>
+                <Label htmlFor="icon" className="text-jf-light">Icon (optional Lucide icon name)</Label>
                 <Input
                   id="icon"
                   value={editingResource ? editingResource.icon || "" : newResource.icon || ""}
@@ -306,12 +309,13 @@ const FooterResourceManager = () => {
                       : setNewResource({...newResource, icon: value});
                   }}
                   placeholder="e.g. 'Github', 'Twitter', 'Facebook', etc."
+                  className="bg-jf-gray/30 border-[#D946EF]/30 text-white placeholder:text-gray-500"
                 />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="category" className="text-jf-light">Category</Label>
                   <Select
                     value={editingResource ? editingResource.category : newResource.category}
                     onValueChange={(value) => editingResource
@@ -319,12 +323,12 @@ const FooterResourceManager = () => {
                       : setNewResource({...newResource, category: value})
                     }
                   >
-                    <SelectTrigger id="category">
+                    <SelectTrigger id="category" className="bg-jf-gray/30 border-[#D946EF]/30 text-white">
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-jf-dark border-[#D946EF]/30 text-jf-light">
                       {CATEGORIES.map((category) => (
-                        <SelectItem key={category} value={category}>
+                        <SelectItem key={category} value={category} className="focus:bg-[#D946EF]/20 focus:text-white">
                           {category.charAt(0).toUpperCase() + category.slice(1)}
                         </SelectItem>
                       ))}
@@ -332,7 +336,7 @@ const FooterResourceManager = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="position">Position</Label>
+                  <Label htmlFor="position" className="text-jf-light">Position</Label>
                   <Input
                     id="position"
                     type="number"
@@ -343,6 +347,7 @@ const FooterResourceManager = () => {
                         ? setEditingResource({...editingResource, position: value})
                         : setNewResource({...newResource, position: value});
                     }}
+                    className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                   />
                 </div>
               </div>
@@ -355,15 +360,18 @@ const FooterResourceManager = () => {
                     ? setEditingResource({...editingResource, is_active: checked})
                     : setNewResource({...newResource, is_active: checked})
                   }
+                  className="data-[state=checked]:bg-[#D946EF]"
                 />
-                <Label htmlFor="is_active">Active</Label>
+                <Label htmlFor="is_active" className="text-jf-light">Active</Label>
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}
+                className="border-[#D946EF]/50 text-[#D946EF] hover:bg-[#D946EF]/10">
                 Cancel
               </Button>
-              <Button type="button" onClick={editingResource ? handleEditResource : handleAddResource}>
+              <Button type="button" onClick={editingResource ? handleEditResource : handleAddResource}
+                className="bg-[#D946EF] hover:bg-[#D946EF]/80">
                 {editingResource ? "Update" : "Add"}
               </Button>
             </DialogFooter>
@@ -373,7 +381,7 @@ const FooterResourceManager = () => {
 
       {loading ? (
         <div className="flex justify-center my-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#D946EF]" />
         </div>
       ) : resources.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
@@ -386,15 +394,16 @@ const FooterResourceManager = () => {
               <h3 className="text-xl font-semibold mb-4 capitalize">{category}</h3>
               <div className="grid gap-4">
                 {categoryResources.map((resource) => (
-                  <Card key={resource.id} className={!resource.is_active ? "opacity-60" : ""}>
+                  <Card key={resource.id} className={`${!resource.is_active ? "opacity-60" : ""} bg-jf-gray/30 border-[#D946EF]/30 text-jf-light`}>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between">
-                        <CardTitle className="text-lg">{resource.title_en}</CardTitle>
+                        <CardTitle className="text-lg text-jf-light">{resource.title_en}</CardTitle>
                         <div className="flex items-center space-x-2">
                           <Switch
                             id={`active-${resource.id}`}
                             checked={resource.is_active}
                             onCheckedChange={() => handleToggleActive(resource.id, resource.is_active)}
+                            className="data-[state=checked]:bg-[#D946EF]"
                           />
                           <Label htmlFor={`active-${resource.id}`} className="sr-only">
                             Active
@@ -406,6 +415,7 @@ const FooterResourceManager = () => {
                               setEditingResource(resource);
                               setDialogOpen(true);
                             }}
+                            className="hover:bg-[#D946EF]/10 hover:text-[#D946EF]"
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -426,6 +436,7 @@ const FooterResourceManager = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDeleteResource(resource.id)}
+                            className="hover:bg-[#D946EF]/10 hover:text-[#D946EF]"
                           >
                             <Trash className="h-4 w-4" />
                           </Button>
@@ -435,12 +446,12 @@ const FooterResourceManager = () => {
                     <CardContent>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <div className="text-sm text-gray-500">Italian: {resource.title_it}</div>
-                          <div className="text-sm text-gray-500">Position: {resource.position}</div>
+                          <div className="text-sm text-[#D946EF]">Italian: {resource.title_it}</div>
+                          <div className="text-sm text-[#D946EF]">Position: {resource.position}</div>
                         </div>
                         <div>
-                          <div className="text-sm text-gray-500">URL: {resource.url}</div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-[#D946EF]">URL: {resource.url}</div>
+                          <div className="text-sm text-[#D946EF]">
                             Icon: {resource.icon || "None"}
                           </div>
                         </div>

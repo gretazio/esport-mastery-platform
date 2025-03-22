@@ -225,18 +225,18 @@ const FAQManager = () => {
                 position: faqs.length,
                 is_active: true,
               });
-            }}>
+            }} className="bg-[#D946EF] hover:bg-[#D946EF]/80 text-white">
               <Plus className="mr-2 h-4 w-4" /> Add FAQ
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-jf-dark border-[#D946EF]/30 text-jf-light">
             <DialogHeader>
-              <DialogTitle>{editingFaq ? "Edit FAQ" : "Add FAQ"}</DialogTitle>
+              <DialogTitle className="text-jf-light">{editingFaq ? "Edit FAQ" : "Add FAQ"}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="question_it">Question (Italian)</Label>
+                  <Label htmlFor="question_it" className="text-jf-light">Question (Italian)</Label>
                   <Input
                     id="question_it"
                     value={editingFaq ? editingFaq.question_it : newFaq.question_it}
@@ -244,10 +244,11 @@ const FAQManager = () => {
                       ? setEditingFaq({...editingFaq, question_it: e.target.value})
                       : setNewFaq({...newFaq, question_it: e.target.value})
                     }
+                    className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="question_en">Question (English)</Label>
+                  <Label htmlFor="question_en" className="text-jf-light">Question (English)</Label>
                   <Input
                     id="question_en"
                     value={editingFaq ? editingFaq.question_en : newFaq.question_en}
@@ -255,12 +256,13 @@ const FAQManager = () => {
                       ? setEditingFaq({...editingFaq, question_en: e.target.value})
                       : setNewFaq({...newFaq, question_en: e.target.value})
                     }
+                    className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="answer_it">Answer (Italian) - Markdown</Label>
+                  <Label htmlFor="answer_it" className="text-jf-light">Answer (Italian) - Markdown</Label>
                   <Textarea
                     id="answer_it"
                     rows={6}
@@ -270,10 +272,11 @@ const FAQManager = () => {
                       : setNewFaq({...newFaq, answer_it: e.target.value})
                     }
                     placeholder="Support markdown formatting"
+                    className="bg-jf-gray/30 border-[#D946EF]/30 text-white placeholder:text-gray-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="answer_en">Answer (English) - Markdown</Label>
+                  <Label htmlFor="answer_en" className="text-jf-light">Answer (English) - Markdown</Label>
                   <Textarea
                     id="answer_en"
                     rows={6}
@@ -283,12 +286,13 @@ const FAQManager = () => {
                       : setNewFaq({...newFaq, answer_en: e.target.value})
                     }
                     placeholder="Support markdown formatting"
+                    className="bg-jf-gray/30 border-[#D946EF]/30 text-white placeholder:text-gray-500"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="position">Position</Label>
+                  <Label htmlFor="position" className="text-jf-light">Position</Label>
                   <Input
                     id="position"
                     type="number"
@@ -299,6 +303,7 @@ const FAQManager = () => {
                         ? setEditingFaq({...editingFaq, position: value})
                         : setNewFaq({...newFaq, position: value});
                     }}
+                    className="bg-jf-gray/30 border-[#D946EF]/30 text-white"
                   />
                 </div>
                 <div className="flex items-center space-x-2 pt-8">
@@ -309,16 +314,19 @@ const FAQManager = () => {
                       ? setEditingFaq({...editingFaq, is_active: checked})
                       : setNewFaq({...newFaq, is_active: checked})
                     }
+                    className="data-[state=checked]:bg-[#D946EF]"
                   />
-                  <Label htmlFor="is_active">Active</Label>
+                  <Label htmlFor="is_active" className="text-jf-light">Active</Label>
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}
+                className="border-[#D946EF]/50 text-[#D946EF] hover:bg-[#D946EF]/10">
                 Cancel
               </Button>
-              <Button type="button" onClick={editingFaq ? handleEditFaq : handleAddFaq}>
+              <Button type="button" onClick={editingFaq ? handleEditFaq : handleAddFaq}
+                className="bg-[#D946EF] hover:bg-[#D946EF]/80">
                 {editingFaq ? "Update" : "Add"}
               </Button>
             </DialogFooter>
@@ -328,7 +336,7 @@ const FAQManager = () => {
 
       {loading ? (
         <div className="flex justify-center my-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#D946EF]" />
         </div>
       ) : faqs.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
@@ -346,6 +354,7 @@ const FAQManager = () => {
                       id={`active-${faq.id}`}
                       checked={faq.is_active}
                       onCheckedChange={() => handleToggleActive(faq.id, faq.is_active)}
+                      className="data-[state=checked]:bg-[#D946EF]"
                     />
                     <Label htmlFor={`active-${faq.id}`} className="sr-only">
                       Active
@@ -357,6 +366,7 @@ const FAQManager = () => {
                         setEditingFaq(faq);
                         setDialogOpen(true);
                       }}
+                      className="hover:bg-[#D946EF]/10 hover:text-[#D946EF]"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -377,6 +387,7 @@ const FAQManager = () => {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteFaq(faq.id)}
+                      className="hover:bg-[#D946EF]/10 hover:text-[#D946EF]"
                     >
                       <Trash className="h-4 w-4" />
                     </Button>
