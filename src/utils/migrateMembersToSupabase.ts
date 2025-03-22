@@ -97,3 +97,114 @@ export const migrateGames = async () => {
     throw error;
   }
 };
+
+// Sample data for FAQs
+const faqs = [
+  {
+    question_it: "Che cos'è Judgment Fleet?",
+    question_en: "What is Judgment Fleet?",
+    answer_it: "Judgment Fleet è un clan italiano di Pokémon competitivo fondato nel 2015. Ci concentriamo principalmente sui tornei su Pokémon Showdown.",
+    answer_en: "Judgment Fleet is an Italian competitive Pokémon clan founded in 2015. We focus primarily on tournaments on Pokémon Showdown.",
+    position: 1,
+    is_active: true
+  },
+  {
+    question_it: "Come posso unirmi a Judgment Fleet?",
+    question_en: "How can I join Judgment Fleet?",
+    answer_it: "Puoi contattarci attraverso il nostro Discord o via email. Siamo sempre alla ricerca di giocatori appassionati!",
+    answer_en: "You can contact us through our Discord or via email. We're always looking for passionate players!",
+    position: 2,
+    is_active: true
+  }
+];
+
+export const migrateFAQs = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('faqs')
+      .insert(faqs)
+      .select();
+
+    if (error) {
+      throw error;
+    }
+
+    console.log('FAQs migration successful:', data);
+    return data;
+  } catch (error) {
+    console.error('FAQs migration failed:', error);
+    throw error;
+  }
+};
+
+// Sample data for footer resources
+const footerResources = [
+  {
+    title_it: "Smogon",
+    title_en: "Smogon",
+    url: "https://www.smogon.com/",
+    icon: "external-link",
+    category: "links",
+    position: 1,
+    is_active: true
+  },
+  {
+    title_it: "Pokémon Showdown",
+    title_en: "Pokémon Showdown",
+    url: "https://play.pokemonshowdown.com/",
+    icon: "gamepad-2",
+    category: "links",
+    position: 2,
+    is_active: true
+  },
+  {
+    title_it: "Discord",
+    title_en: "Discord",
+    url: "https://discord.gg/example",
+    icon: "discord",
+    category: "social",
+    position: 1,
+    is_active: true
+  }
+];
+
+export const migrateFooterResources = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('footer_resources')
+      .insert(footerResources)
+      .select();
+
+    if (error) {
+      throw error;
+    }
+
+    console.log('Footer resources migration successful:', data);
+    return data;
+  } catch (error) {
+    console.error('Footer resources migration failed:', error);
+    throw error;
+  }
+};
+
+// Run all migrations at once
+export const migrateAll = async () => {
+  try {
+    console.log("Starting migration of all data...");
+    
+    const memberResults = await migrateMembers();
+    const gameResults = await migrateGames();
+    const faqResults = await migrateFAQs();
+    const resourceResults = await migrateFooterResources();
+    
+    return {
+      members: memberResults,
+      games: gameResults,
+      faqs: faqResults,
+      resources: resourceResults
+    };
+  } catch (error) {
+    console.error("Error during full migration:", error);
+    throw error;
+  }
+};

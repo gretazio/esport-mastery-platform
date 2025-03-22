@@ -28,7 +28,15 @@ export type Database = {
           id?: string
           is_active?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admins_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "authenticated_users_view"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       best_games: {
         Row: {
@@ -72,6 +80,81 @@ export type Database = {
         }
         Relationships: []
       }
+      faqs: {
+        Row: {
+          answer_en: string
+          answer_it: string
+          created_at: string
+          id: string
+          is_active: boolean
+          position: number
+          question_en: string
+          question_it: string
+          updated_at: string
+        }
+        Insert: {
+          answer_en: string
+          answer_it: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          position?: number
+          question_en: string
+          question_it: string
+          updated_at?: string
+        }
+        Update: {
+          answer_en?: string
+          answer_it?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          position?: number
+          question_en?: string
+          question_it?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      footer_resources: {
+        Row: {
+          category: string
+          created_at: string
+          icon: string | null
+          id: string
+          is_active: boolean
+          position: number
+          title_en: string
+          title_it: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          position?: number
+          title_en: string
+          title_it: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          position?: number
+          title_en?: string
+          title_it?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       members: {
         Row: {
           achievements: string[]
@@ -107,7 +190,24 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      authenticated_users_view: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

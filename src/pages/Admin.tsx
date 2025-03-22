@@ -1,1100 +1,1139 @@
+
 import { useState, useEffect } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Edit, Trash2, Plus, Save, X, LogOut, User, Shield, UserCheck, Loader2 } from "lucide-react";
-import { supabase } from "../integrations/supabase/client";
 import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "@/components/ui/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { supabase } from "../integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, AlertTriangle, Check, Trash, RefreshCw, Plus, PenSquare } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import Navbar from "../components/Navbar";
-import { normalizeImageUrl, getStorageImageUrl } from "../utils/imageUtils";
-import useDebouncedEffect from "../hooks/use-debounced-effect";
+import { usePasswordReset } from "@/hooks/usePasswordReset";
+import FAQManager from "@/components/admin/FAQManager";
+import FooterResourceManager from "@/components/admin/FooterResourceManager";
 
+// Type for registered users fetched from Supabase
+interface RegisteredUser {
+  id: string;
+  email: string;
+  created_at: string;
+  is_active?: boolean;
+}
+
+// Type for a member that we'll fetch from the database
 interface Member {
   id: string;
   name: string;
   image: string;
   role: string;
-  join_date?: string;
+  join_date: string | null;
   achievements: string[];
+  created_at: string;
+  updated_at: string;
 }
 
-interface Game {
+// Type for a best game that we'll fetch from the database
+interface BestGame {
   id: string;
-  image_url: string;
-  replay_url: string;
   tournament: string;
   phase: string;
   format: string;
   players: string;
+  image_url: string;
+  replay_url: string;
   description_it: string;
   description_en: string;
+  created_at: string;
+  updated_at: string;
 }
 
-interface AdminUser {
-  id: string;
-  email: string;
-  is_active: boolean;
-  created_at: string;
-}
+// Initial state for a new member
+const initialMemberState: Omit<Member, "id" | "created_at" | "updated_at"> = {
+  name: "",
+  image: "",
+  role: "",
+  join_date: "",
+  achievements: [],
+};
 
-interface RegisteredUser {
-  id: string;
-  email: string;
-  is_active: boolean;
-  created_at: string;
-}
+// Initial state for a new best game
+const initialGameState: Omit<BestGame, "id" | "created_at" | "updated_at"> = {
+  tournament: "",
+  phase: "",
+  format: "",
+  players: "",
+  image_url: "",
+  replay_url: "",
+  description_it: "",
+  description_en: "",
+};
 
 const Admin = () => {
-  const { user, isAdmin, loading, signOut, checkIsAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { resetPassword, isLoading: resetLoading } = usePasswordReset();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
+  // States for data
   const [members, setMembers] = useState<Member[]>([]);
-  const [games, setGames] = useState<Game[]>([]);
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [games, setGames] = useState<BestGame[]>([]);
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
-  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [firstAdminId, setFirstAdminId] = useState<string | null>(null);
+
+  // States for new data
+  const [newMember, setNewMember] = useState<Omit<Member, "id" | "created_at" | "updated_at">>(initialMemberState);
+  const [newGame, setNewGame] = useState<Omit<BestGame, "id" | "created_at" | "updated_at">>(initialGameState);
   
-  const [editMember, setEditMember] = useState<Member | null>(null);
-  const [editGame, setEditGame] = useState<Game | null>(null);
-  const [achievements, setAchievements] = useState<string>("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [currentTab, setCurrentTab] = useState("members");
+  // States for editing
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [editingGame, setEditingGame] = useState<BestGame | null>(null);
+  
+  // UI states
+  const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+  const [gameDialogOpen, setGameDialogOpen] = useState(false);
+  const [achievementInput, setAchievementInput] = useState("");
+  
+  // Loading states
+  const [loadingMembers, setLoadingMembers] = useState(true);
+  const [loadingGames, setLoadingGames] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [savingUser, setSavingUser] = useState<{ [key: string]: boolean }>({});
 
-  useDebouncedEffect(() => {
-    const fetchData = async () => {
-      if (!user || !isAdmin) return;
-      
-      try {
-        console.time("Admin data fetch");
-        setLoadingData(true);
-        console.log("Fetching admin data with UID:", user.id);
-        
-        // Fetch members
-        const { data: membersData, error: membersError } = await supabase
-          .from('members')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (membersError) throw membersError;
-        console.log("Loaded members:", membersData?.length || 0);
-        setMembers(membersData || []);
-
-        // Fetch games
-        const { data: gamesData, error: gamesError } = await supabase
-          .from('best_games')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (gamesError) throw gamesError;
-        console.log("Loaded games:", gamesData?.length || 0);
-        setGames(gamesData || []);
-        
-        console.timeEnd("Admin data fetch");
-      } catch (error: any) {
-        console.error("Error loading admin data:", error);
-        toast({
-          title: "Errore nel caricamento dei dati",
-          description: error.message || "Si è verificato un problema durante il caricamento dei dati",
-          variant: "destructive",
-        });
-      } finally {
-        setLoadingData(false);
-      }
-    };
-
-    if (user && isAdmin) {
-      fetchData();
-    }
-  }, 300, [user?.id, isAdmin]);
-
-  useEffect(() => {
-    if (!user || !isAdmin) return;
-    
-    // Members table subscription
-    const membersChannel = supabase
-      .channel('members_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'members'
-      }, (payload) => {
-        console.log('Realtime update for members:', payload);
-        
-        // Refresh the entire list when changes occur
-        supabase
-          .from('members')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .then(({ data }) => {
-            if (data) {
-              console.log(`Updated members list, now ${data.length} items`);
-              setMembers(data);
-            }
-          });
-      })
-      .subscribe();
-      
-    // Games table subscription
-    const gamesChannel = supabase
-      .channel('games_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'best_games'
-      }, (payload) => {
-        console.log('Realtime update for games:', payload);
-        
-        // Refresh the entire list when changes occur
-        supabase
-          .from('best_games')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .then(({ data }) => {
-            if (data) {
-              console.log(`Updated games list, now ${data.length} items`);
-              setGames(data);
-            }
-          });
-      })
-      .subscribe();
-
-    // Cleanup function
-    return () => {
-      supabase.removeChannel(membersChannel);
-      supabase.removeChannel(gamesChannel);
-    };
-  }, [user?.id, isAdmin]);
-
-  useDebouncedEffect(() => {
-    const fetchUsers = async () => {
-      if (!isAdmin || !user) return;
-      
-      try {
-        console.time("Admin users fetch");
-        setLoadingUsers(true);
-        
-        const { data: adminData, error: adminError } = await supabase
-          .from('admins')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (adminError) throw adminError;
-        setAdminUsers(adminData || []);
-        console.log("Loaded admin users:", adminData?.length || 0);
-        
-        const processedUsers: RegisteredUser[] = adminData?.map(admin => ({
-          id: admin.id,
-          email: admin.email,
-          is_active: admin.is_active,
-          created_at: admin.created_at
-        })) || [];
-        
-        setRegisteredUsers(processedUsers);
-        console.log("Using admin users for registered users:", processedUsers.length || 0);
-        
-        console.timeEnd("Admin users fetch");
-      } catch (error: any) {
-        console.error("Errore nel caricamento degli utenti:", error);
-        toast({
-          title: "Errore",
-          description: "Impossibile caricare la lista degli utenti",
-          variant: "destructive",
-        });
-      } finally {
-        setLoadingUsers(false);
-      }
-    };
-    
-    if (isAdmin && user) {
-      fetchUsers();
-    }
-  }, 500, [isAdmin, user?.id]);
-
-  const handleEditMember = (member: Member) => {
-    const formattedMember = {
-      ...member,
-      image: normalizeImageUrl(member.image)
-    };
-    setEditMember(formattedMember);
-    setAchievements(member.achievements.join('\n'));
-    setDialogOpen(true);
-  };
-
-  const handleSaveMember = async () => {
-    if (!editMember) return;
-
+  // Fetch admin users and set the first admin ID for protection
+  const fetchAdmins = async () => {
     try {
-      const achievementsArray = achievements
-        .split('\n')
-        .map(item => item.trim())
-        .filter(item => item !== '');
-
-      const normalizedImage = getStorageImageUrl(editMember.image);
-
-      const updatedMember = {
-        ...editMember,
-        image: normalizedImage,
-        achievements: achievementsArray
-      };
-
-      if (editMember.id === 'new') {
-        const { id, ...newMember } = updatedMember;
-        
-        const { data, error } = await supabase
-          .from('members')
-          .insert([newMember])
-          .select();
-
-        if (error) throw error;
-        
-        setMembers(prev => [...prev, data[0]]);
-        toast({
-          title: "Membro aggiunto",
-          description: "Il nuovo membro è stato aggiunto con successo"
-        });
-      } else {
-        const { error } = await supabase
-          .from('members')
-          .update(updatedMember)
-          .eq('id', editMember.id);
-
-        if (error) throw error;
-        
-        setMembers(prev => 
-          prev.map(item => item.id === editMember.id ? updatedMember : item)
-        );
-        toast({
-          title: "Membro aggiornato",
-          description: "I dati del membro sono stati aggiornati con successo"
-        });
-      }
-
-      setDialogOpen(false);
-      setEditMember(null);
-    } catch (error: any) {
-      toast({
-        title: "Errore",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteMember = async (id: string) => {
-    if (window.confirm("Sei sicuro di voler eliminare questo membro?")) {
-      try {
-        const { error } = await supabase
-          .from('members')
-          .delete()
-          .eq('id', id);
-
-        if (error) throw error;
-        
-        setMembers(prev => prev.filter(member => member.id !== id));
-        toast({
-          title: "Membro eliminato",
-          description: "Il membro è stato eliminato con successo"
-        });
-      } catch (error: any) {
-        toast({
-          title: "Errore",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const handleAddMember = () => {
-    const newMember: Member = {
-      id: 'new',
-      name: '',
-      image: '',
-      role: '',
-      join_date: '',
-      achievements: []
-    };
-    setEditMember(newMember);
-    setAchievements('');
-    setDialogOpen(true);
-  };
-
-  const handleEditGame = (game: Game) => {
-    // Update the game with normalized image URL
-    const updatedGame = {
-      ...game,
-      image_url: normalizeImageUrl(game.image_url)
-    };
-    setEditGame(updatedGame);
-    setDialogOpen(true);
-  };
-
-  const handleSaveGame = async () => {
-    if (!editGame) return;
-
-    try {
-      // Store the image URL in a normalized format
-      const normalizedGame = {
-        ...editGame,
-        image_url: getStorageImageUrl(editGame.image_url)
-      };
-
-      if (editGame.id === 'new') {
-        const { id, ...newGame } = normalizedGame;
-        
-        const { data, error } = await supabase
-          .from('best_games')
-          .insert([newGame])
-          .select();
-
-        if (error) throw error;
-        
-        setGames(prev => [...prev, data[0]]);
-        toast({
-          title: "Gioco aggiunto",
-          description: "Il nuovo gioco è stato aggiunto con successo"
-        });
-      } else {
-        const { error } = await supabase
-          .from('best_games')
-          .update(normalizedGame)
-          .eq('id', editGame.id);
-
-        if (error) throw error;
-        
-        setGames(prev => 
-          prev.map(item => item.id === editGame.id ? normalizedGame : item)
-        );
-        toast({
-          title: "Gioco aggiornato",
-          description: "I dati del gioco sono stati aggiornati con successo"
-        });
-      }
-
-      setDialogOpen(false);
-      setEditGame(null);
-    } catch (error: any) {
-      toast({
-        title: "Errore",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteGame = async (id: string) => {
-    if (window.confirm("Sei sicuro di voler eliminare questo gioco?")) {
-      try {
-        const { error } = await supabase
-          .from('best_games')
-          .delete()
-          .eq('id', id);
-
-        if (error) throw error;
-        
-        setGames(prev => prev.filter(game => game.id !== id));
-        toast({
-          title: "Gioco eliminato",
-          description: "Il gioco è stato eliminato con successo"
-        });
-      } catch (error: any) {
-        toast({
-          title: "Errore",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const handleAddGame = () => {
-    const newGame: Game = {
-      id: 'new',
-      image_url: '',
-      replay_url: '',
-      tournament: '',
-      phase: '',
-      format: '',
-      players: '',
-      description_it: '',
-      description_en: ''
-    };
-    setEditGame(newGame);
-    setDialogOpen(true);
-  };
-
-  const handleToggleAdmin = async (userId: string, email: string, isCurrentAdmin: boolean) => {
-    try {
-      // Check if this is the first admin
-      const { data: allAdmins, error: countError } = await supabase
+      const { data, error } = await supabase
         .from('admins')
         .select('*')
         .order('created_at', { ascending: true });
-        
-      if (countError) throw countError;
       
-      // If this is the first admin and we're trying to disable it, block the operation
-      if (allAdmins && allAdmins.length > 0 && allAdmins[0].id === userId && isCurrentAdmin) {
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setFirstAdminId(data[0].id);
+      }
+    } catch (error) {
+      console.error("Error fetching admins:", error);
+    }
+  };
+
+  // Fetch all authenticated users
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      
+      // First, fetch all authenticated users
+      const { data: authUsers, error: authError } = await supabase
+        .from('authenticated_users_view')
+        .select('*');
+      
+      if (authError) throw authError;
+      
+      if (!authUsers) {
+        setRegisteredUsers([]);
+        return;
+      }
+      
+      // Then, fetch admin status for these users
+      const { data: admins, error: adminsError } = await supabase
+        .from('admins')
+        .select('*');
+      
+      if (adminsError) throw adminsError;
+      
+      // Combine the data
+      const usersWithAdminStatus = authUsers.map(user => {
+        const isAdmin = admins?.find(admin => admin.id === user.id);
+        return {
+          ...user,
+          is_active: isAdmin ? isAdmin.is_active : false
+        };
+      });
+      
+      setRegisteredUsers(usersWithAdminStatus);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load users",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Fetch members from the database
+  const fetchMembers = async () => {
+    try {
+      setLoadingMembers(true);
+      const { data, error } = await supabase
+        .from('members')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      setMembers(data || []);
+    } catch (error) {
+      console.error("Error fetching members:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load members",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  // Fetch best games from the database
+  const fetchGames = async () => {
+    try {
+      setLoadingGames(true);
+      const { data, error } = await supabase
+        .from('best_games')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      setGames(data || []);
+    } catch (error) {
+      console.error("Error fetching games:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load best games",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingGames(false);
+    }
+  };
+
+  // Add or remove admin status for a user
+  const toggleAdminStatus = async (userId: string, isCurrentlyAdmin: boolean) => {
+    try {
+      setSavingUser(prev => ({ ...prev, [userId]: true }));
+      
+      // Check if this is the first admin
+      if (userId === firstAdminId && isCurrentlyAdmin) {
         toast({
-          title: "Operazione non consentita",
-          description: "Non è possibile rimuovere il primo amministratore del sistema",
+          title: "Cannot Remove",
+          description: "Cannot remove admin status from the first admin user for security reasons.",
           variant: "destructive",
         });
         return;
       }
       
-      if (isCurrentAdmin) {
+      if (isCurrentlyAdmin) {
+        // Remove admin status
         const { error } = await supabase
           .from('admins')
           .update({ is_active: false })
           .eq('id', userId);
-          
+        
         if (error) throw error;
-        
-        setAdminUsers(prev => 
-          prev.map(admin => 
-            admin.id === userId ? { ...admin, is_active: false } : admin
-          )
-        );
-        
-        if (userId === user?.id) {
-          setTimeout(() => window.location.reload(), 1000);
-        }
-        
-        toast({
-          title: "Admin rimosso",
-          description: `${email} non è più un amministratore`
-        });
       } else {
-        const { data: existingAdmin, error: checkError } = await supabase
+        // First check if record exists
+        const { data, error: checkError } = await supabase
           .from('admins')
-          .select('*')
+          .select('id')
           .eq('id', userId)
           .maybeSingle();
-          
+        
         if (checkError) throw checkError;
         
-        if (existingAdmin) {
+        if (data) {
+          // Update existing record
           const { error } = await supabase
             .from('admins')
             .update({ is_active: true })
             .eq('id', userId);
-            
+          
           if (error) throw error;
         } else {
+          // Get user email
+          const userEmail = registeredUsers.find(u => u.id === userId)?.email;
+          
+          if (!userEmail) {
+            throw new Error("User email not found");
+          }
+          
+          // Insert new admin record
           const { error } = await supabase
             .from('admins')
-            .insert([{ id: userId, email, is_active: true }]);
-            
+            .insert([{ id: userId, email: userEmail, is_active: true }]);
+          
           if (error) throw error;
         }
-        
-        const { data: adminData, error: refreshError } = await supabase
-          .from('admins')
-          .select('*')
-          .order('created_at', { ascending: false });
-          
-        if (refreshError) throw refreshError;
-        
-        setAdminUsers(adminData || []);
-        setRegisteredUsers(adminData || []);
-        
+      }
+      
+      toast({
+        title: "Success",
+        description: `User ${isCurrentlyAdmin ? "removed from" : "added to"} admins`,
+      });
+      
+      // Refresh users list
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error updating admin status:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update admin status",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingUser(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  // Handle sending password reset emails
+  const handlePasswordReset = async (email: string) => {
+    try {
+      const result = await resetPassword(email);
+      if (result.success) {
         toast({
-          title: "Admin aggiunto",
-          description: `${email} è ora un amministratore`
+          title: "Password Reset Email Sent",
+          description: `A password reset link has been sent to ${email}`,
         });
       }
-    } catch (error: any) {
-      console.error("Errore nella gestione admin:", error);
+    } catch (error) {
+      console.error("Error sending password reset:", error);
+    }
+  };
+
+  // Add a new member to the database
+  const handleAddMember = async () => {
+    try {
+      if (!newMember.name || !newMember.image || !newMember.role) {
+        toast({
+          title: "Validation Error",
+          description: "Name, image URL, and role are required fields",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const { error } = await supabase
+        .from('members')
+        .insert([newMember]);
+      
+      if (error) throw error;
+      
       toast({
-        title: "Errore",
-        description: error.message || "Si è verificato un errore",
+        title: "Success",
+        description: "Member added successfully",
+      });
+      
+      setNewMember(initialMemberState);
+      setMemberDialogOpen(false);
+      fetchMembers();
+    } catch (error: any) {
+      console.error("Error adding member:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add member",
         variant: "destructive",
       });
     }
   };
 
-  useEffect(() => {
-    const fetchAllUsers = async () => {
-      if (!user || !isAdmin) return;
+  // Edit an existing member
+  const handleEditMember = async () => {
+    try {
+      if (!editingMember) return;
       
-      try {
-        // Get all authenticated users from the auth.users table via supabase admin function
-        // This will be managed with Row Level Security in production
-        const { data: usersData, error: usersError } = await supabase
-          .from('authenticated_users_view')
-          .select('*')
-          .order('created_at', { ascending: false });
-          
-        if (usersError) throw usersError;
-        
-        setRegisteredUsers(usersData || []);
-        console.log("Loaded all users:", usersData?.length || 0);
-      } catch (error: any) {
-        console.error("Error loading users:", error);
+      const { id, created_at, updated_at, ...updateData } = editingMember;
+      
+      const { error } = await supabase
+        .from('members')
+        .update(updateData)
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Member updated successfully",
+      });
+      
+      setEditingMember(null);
+      setMemberDialogOpen(false);
+      fetchMembers();
+    } catch (error: any) {
+      console.error("Error updating member:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update member",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Delete a member
+  const handleDeleteMember = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('members')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Member deleted successfully",
+      });
+      
+      fetchMembers();
+    } catch (error: any) {
+      console.error("Error deleting member:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete member",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Add a new best game
+  const handleAddGame = async () => {
+    try {
+      if (!newGame.tournament || !newGame.phase || !newGame.format || !newGame.players || 
+          !newGame.image_url || !newGame.replay_url || !newGame.description_it || !newGame.description_en) {
         toast({
-          title: "Errore",
-          description: "Impossibile caricare gli utenti registrati",
+          title: "Validation Error",
+          description: "All fields are required",
           variant: "destructive",
         });
+        return;
       }
-    };
-    
-    if (isAdmin && user) {
-      fetchAllUsers();
+      
+      const { error } = await supabase
+        .from('best_games')
+        .insert([newGame]);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Game added successfully",
+      });
+      
+      setNewGame(initialGameState);
+      setGameDialogOpen(false);
+      fetchGames();
+    } catch (error: any) {
+      console.error("Error adding game:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add game",
+        variant: "destructive",
+      });
     }
-  }, [isAdmin, user?.id]);
+  };
 
-  if (loading) {
+  // Edit an existing best game
+  const handleEditGame = async () => {
+    try {
+      if (!editingGame) return;
+      
+      const { id, created_at, updated_at, ...updateData } = editingGame;
+      
+      const { error } = await supabase
+        .from('best_games')
+        .update(updateData)
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Game updated successfully",
+      });
+      
+      setEditingGame(null);
+      setGameDialogOpen(false);
+      fetchGames();
+    } catch (error: any) {
+      console.error("Error updating game:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update game",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Delete a best game
+  const handleDeleteGame = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('best_games')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Game deleted successfully",
+      });
+      
+      fetchGames();
+    } catch (error: any) {
+      console.error("Error deleting game:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete game",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Add an achievement to the achievements array
+  const handleAddAchievement = () => {
+    if (!achievementInput.trim()) return;
+    
+    if (editingMember) {
+      setEditingMember({
+        ...editingMember,
+        achievements: [...editingMember.achievements, achievementInput.trim()],
+      });
+    } else {
+      setNewMember({
+        ...newMember,
+        achievements: [...newMember.achievements, achievementInput.trim()],
+      });
+    }
+    
+    setAchievementInput("");
+  };
+
+  // Remove an achievement from the achievements array
+  const handleRemoveAchievement = (index: number) => {
+    if (editingMember) {
+      const updatedAchievements = [...editingMember.achievements];
+      updatedAchievements.splice(index, 1);
+      setEditingMember({
+        ...editingMember,
+        achievements: updatedAchievements,
+      });
+    } else {
+      const updatedAchievements = [...newMember.achievements];
+      updatedAchievements.splice(index, 1);
+      setNewMember({
+        ...newMember,
+        achievements: updatedAchievements,
+      });
+    }
+  };
+
+  // Effects to fetch data
+  useEffect(() => {
+    if (!authLoading && (!user || !isAdmin)) {
+      navigate("/");
+      return;
+    }
+    
+    if (!authLoading && user && isAdmin) {
+      // Fetch all data
+      fetchMembers();
+      fetchGames();
+      fetchUsers();
+      fetchAdmins();
+      
+      // Set up realtime subscriptions
+      const membersSubscription = supabase
+        .channel('members-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'members',
+        }, () => fetchMembers())
+        .subscribe();
+      
+      const gamesSubscription = supabase
+        .channel('games-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'best_games',
+        }, () => fetchGames())
+        .subscribe();
+      
+      const adminsSubscription = supabase
+        .channel('admins-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'admins',
+        }, () => {
+          fetchUsers();
+          fetchAdmins();
+        })
+        .subscribe();
+      
+      return () => {
+        membersSubscription.unsubscribe();
+        gamesSubscription.unsubscribe();
+        adminsSubscription.unsubscribe();
+      };
+    }
+  }, [authLoading, user, isAdmin, navigate]);
+
+  if (authLoading) {
     return (
-      <div className="min-h-screen bg-jf-dark text-white flex flex-col items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-[#D946EF]" />
-        <p className="mt-4 text-xl">Verifica credenziali...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
+  if (!user || !isAdmin) {
+    // This should not be visible as we navigate away
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <AlertTriangle className="h-12 w-12 text-yellow-500 mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+        <p className="text-center mb-4">You need to be logged in as an admin to access this page.</p>
+        <Button onClick={() => navigate("/")}>Return to Home</Button>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-jf-dark text-white">
-      <Navbar />
-      
-      <div className="pt-32 pb-24 px-4">
-        <div className="container mx-auto">
-          <div className="flex justify-between items-center mb-12">
-            <motion.h1
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="text-3xl md:text-4xl font-display font-bold"
-            >
-              Dashboard <span className="text-[#D946EF]">Admin</span>
-            </motion.h1>
-            
-            <Button 
-              variant="ghost" 
-              className="text-white hover:text-[#D946EF]"
-              onClick={async () => {
-                await signOut();
-                navigate('/');
-              }}
-            >
-              <LogOut className="mr-2 h-4 w-4" /> Logout
+    <div className="min-h-screen container mx-auto px-4 py-12">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <Button variant="outline" onClick={() => navigate("/")}>
+          Back to Site
+        </Button>
+      </div>
+
+      <Tabs defaultValue="users">
+        <TabsList className="mb-8">
+          <TabsTrigger value="users">User Management</TabsTrigger>
+          <TabsTrigger value="members">Team Members</TabsTrigger>
+          <TabsTrigger value="games">Best Games</TabsTrigger>
+          <TabsTrigger value="faqs">FAQs</TabsTrigger>
+          <TabsTrigger value="footer">Footer Resources</TabsTrigger>
+        </TabsList>
+
+        {/* Users Management Tab */}
+        <TabsContent value="users" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">User Management</h2>
+            <Button variant="outline" onClick={fetchUsers}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
             </Button>
           </div>
-          
-          {!isAdmin ? (
-            <div className="bg-black/20 rounded-lg border border-white/10 p-8 mb-8">
-              <h2 className="text-2xl font-bold mb-4">Accesso non autorizzato</h2>
-              <p className="mb-4">
-                Il tuo account non ha i permessi di amministratore. Solo gli amministratori autorizzati 
-                possono gestire i contenuti.
-              </p>
-              <p>
-                Contatta l'amministratore del sito per richiedere l'accesso. Puoi continuare a navigare
-                sul sito utilizzando il menu di navigazione.
-              </p>
+
+          {loadingUsers ? (
+            <div className="flex justify-center my-12">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : registeredUsers.length === 0 ? (
+            <div className="text-center py-12 bg-gray-100 rounded-lg">
+              <p className="text-lg text-gray-500">No users found</p>
             </div>
           ) : (
-            <Tabs defaultValue="members" onValueChange={setCurrentTab}>
-              <TabsList className="mb-8 bg-jf-dark/50 border border-white/10">
-                <TabsTrigger value="members">Membri</TabsTrigger>
-                <TabsTrigger value="games">Best Games</TabsTrigger>
-                <TabsTrigger value="admins">Gestione Amministratori</TabsTrigger>
-                <TabsTrigger value="faq">FAQ</TabsTrigger>
-                <TabsTrigger value="resources">Risorse Footer</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="members">
-                <div className="mb-6 flex justify-end">
-                  <Button 
-                    className="bg-[#D946EF] hover:bg-[#D946EF]/90"
-                    onClick={handleAddMember}
-                  >
-                    <Plus className="mr-2 h-4 w-4" /> Aggiungi Membro
-                  </Button>
-                </div>
-                
-                {loadingData ? (
-                  <p>Caricamento membri...</p>
-                ) : (
-                  <div className="space-y-4">
-                    {members.map(member => (
-                      <motion.div
-                        key={member.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="bg-black/20 rounded-lg border border-white/10 p-4"
-                      >
-                        <div className="flex flex-col md:flex-row justify-between">
-                          <div>
-                            <h3 className="text-xl font-bold">{member.name}</h3>
-                            <p className="text-[#D946EF] mb-2">{member.role}</p>
-                            {member.join_date && (
-                              <p className="text-gray-400 text-sm mb-2">Iscritto dal: {member.join_date}</p>
-                            )}
-                            
-                            <h4 className="font-semibold mb-1">Achievements:</h4>
-                            <ul className="list-disc list-inside space-y-1">
-                              {member.achievements.map((achievement, index) => (
-                                <li key={index} className="text-sm text-gray-300">{achievement}</li>
-                              ))}
-                            </ul>
-                          </div>
-                          
-                          <div className="flex md:flex-col gap-2 mt-4 md:mt-0">
-                            <Button 
-                              variant="outline" 
-                              size="icon"
-                              onClick={() => handleEditMember(member)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            
-                            <Button 
-                              variant="outline" 
-                              size="icon"
-                              className="text-red-500 hover:text-red-300"
-                              onClick={() => handleDeleteMember(member.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="games">
-                <div className="mb-6 flex justify-end">
-                  <Button 
-                    className="bg-[#D946EF] hover:bg-[#D946EF]/90"
-                    onClick={handleAddGame}
-                  >
-                    <Plus className="mr-2 h-4 w-4" /> Aggiungi Best Game
-                  </Button>
-                </div>
-                
-                {loadingData ? (
-                  <p>Caricamento games...</p>
-                ) : (
-                  <div className="space-y-4">
-                    {games.map(game => (
-                      <motion.div
-                        key={game.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="bg-black/20 rounded-lg border border-white/10 p-4"
-                      >
-                        <div className="flex flex-col md:flex-row justify-between">
-                          <div>
-                            <div className="flex flex-wrap gap-2 mb-2">
-                              <span className="inline-block px-3 py-1 bg-jf-blue/20 text-jf-blue rounded-full text-sm font-medium">
-                                {game.tournament}
-                              </span>
-                              <span className="inline-block px-3 py-1 bg-[#D946EF]/20 text-[#D946EF] rounded-full text-sm font-medium">
-                                {game.phase}
-                              </span>
-                              <span className="inline-block px-3 py-1 bg-jf-purple/20 text-jf-purple rounded-full text-sm font-medium">
-                                {game.format}
-                              </span>
-                            </div>
-                            
-                            <h3 className="text-xl font-bold mb-2">{game.players}</h3>
-                            
-                            <h4 className="font-semibold mb-1 text-sm">Descrizione (IT):</h4>
-                            <p className="text-gray-300 mb-2 text-sm">{game.description_it}</p>
-                            
-                            <h4 className="font-semibold mb-1 text-sm">Descrizione (EN):</h4>
-                            <p className="text-gray-300 mb-2 text-sm">{game.description_en}</p>
-                            
-                            <a 
-                              href={game.replay_url} 
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[#D946EF] hover:underline text-sm"
-                            >
-                              Link al replay
-                            </a>
-                          </div>
-                          
-                          <div className="flex md:flex-col gap-2 mt-4 md:mt-0">
-                            <Button 
-                              variant="outline" 
-                              size="icon"
-                              onClick={() => handleEditGame(game)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            
-                            <Button 
-                              variant="outline" 
-                              size="icon"
-                              className="text-red-500 hover:text-red-300"
-                              onClick={() => handleDeleteGame(game.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="admins">
-                <div className="mb-8 bg-black/20 rounded-lg border border-white/10 p-6">
-                  <h2 className="text-xl font-bold mb-4 flex items-center">
-                    <Shield className="mr-2 h-5 w-5 text-[#D946EF]" />
-                    Gestione Amministratori
-                  </h2>
-                  <p className="text-gray-300 mb-4">
-                    Da qui puoi gestire chi ha accesso amministrativo al sito. Solo gli amministratori possono 
-                    modificare i contenuti del sito come membri e best games.
-                  </p>
-                  <p className="text-gray-300">
-                    Per aggiungere un amministratore, l'utente deve prima registrarsi al sito, poi potrai 
-                    assegnargli i permessi da questa pagina.
-                  </p>
-                </div>
-                
-                {loadingUsers ? (
-                  <p>Caricamento utenti...</p>
-                ) : (
-                  <div className="space-y-8">
-                    <div className="bg-black/20 rounded-lg border border-white/10 overflow-hidden">
-                      <div className="p-4 bg-black/40 border-b border-white/10">
-                        <h3 className="font-semibold">Utenti Registrati</h3>
-                      </div>
-                      <div className="divide-y divide-white/10">
-                        {registeredUsers.length === 0 ? (
-                          <p className="p-4 text-gray-400">Nessun utente registrato trovato.</p>
-                        ) : (
-                          registeredUsers.map(user => {
-                            // Check if user is an admin
-                            const adminUser = adminUsers.find(admin => admin.id === user.id);
-                            const isActive = adminUser?.is_active === true;
-                            const isFirstAdmin = adminUsers.length > 0 && adminUsers[0].id === user.id;
-                            
-                            return (
-                              <div key={user.id} className="p-4 flex justify-between items-center">
-                                <div className="flex items-center gap-3">
-                                  <User className="h-5 w-5 text-gray-400" />
-                                  <div>
-                                    <p className="font-medium">{user.email}</p>
-                                    <p className="text-xs text-gray-400">
-                                      ID: {user.id.substring(0, 8)}...
-                                    </p>
-                                    {isFirstAdmin && (
-                                      <span className="text-xs text-amber-400">Primo amministratore (protetto)</span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <div className="flex items-center">
-                                    <Switch 
-                                      checked={isActive}
-                                      onCheckedChange={() => handleToggleAdmin(user.id, user.email, isActive)}
-                                      disabled={user.id === user?.id}
-                                    />
-                                    <span className="ml-2">
-                                      {isActive ? (
-                                        <span className="text-green-400 flex items-center">
-                                          <UserCheck className="h-4 w-4 mr-1" />
-                                          Admin
-                                        </span>
-                                      ) : "Utente"}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
+            <div className="grid gap-4">
+              {registeredUsers.map((user) => (
+                <Card key={user.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-center">
+                      <CardTitle>{user.email}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id={`admin-switch-${user.id}`}
+                          checked={user.is_active || false}
+                          onCheckedChange={() => toggleAdminStatus(user.id, user.is_active || false)}
+                          disabled={savingUser[user.id] || (user.id === firstAdminId && user.is_active)}
+                        />
+                        <Label htmlFor={`admin-switch-${user.id}`}>
+                          {user.is_active ? "Admin" : "Not Admin"}
+                        </Label>
                       </div>
                     </div>
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="faq">
-                <div className="mb-6 flex justify-end">
-                  <Button 
-                    className="bg-[#D946EF] hover:bg-[#D946EF]/90"
-                    onClick={() => {
-                      // Add FAQ implementation here
-                      toast({
-                        title: "Coming Soon",
-                        description: "La gestione FAQ sarà implementata a breve"
-                      });
-                    }}
-                  >
-                    <Plus className="mr-2 h-4 w-4" /> Aggiungi FAQ
-                  </Button>
-                </div>
-                
-                <div className="bg-black/20 rounded-lg border border-white/10 p-8">
-                  <p className="text-center text-gray-400">
-                    La gestione delle FAQ sarà implementata a breve. Questa funzionalità permetterà di aggiungere, modificare ed eliminare le FAQ mostrate nella pagina FAQ.
-                  </p>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="resources">
-                <div className="mb-6 flex justify-end">
-                  <Button 
-                    className="bg-[#D946EF] hover:bg-[#D946EF]/90"
-                    onClick={() => {
-                      // Add Resources implementation here
-                      toast({
-                        title: "Coming Soon",
-                        description: "La gestione delle risorse del footer sarà implementata a breve"
-                      });
-                    }}
-                  >
-                    <Plus className="mr-2 h-4 w-4" /> Aggiungi Risorsa
-                  </Button>
-                </div>
-                
-                <div className="bg-black/20 rounded-lg border border-white/10 p-8">
-                  <p className="text-center text-gray-400">
-                    La gestione delle risorse del footer sarà implementata a breve. Questa funzionalità permetterà di aggiungere, modificare ed eliminare i link mostrati nel footer del sito.
-                  </p>
-                </div>
-              </TabsContent>
-            </Tabs>
+                    <CardDescription>
+                      User ID: {user.id}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">
+                      Created: {new Date(user.created_at).toLocaleDateString()}
+                    </p>
+                    {user.id === firstAdminId && user.is_active && (
+                      <p className="text-xs mt-2 text-amber-600">
+                        This is the first admin user and cannot have admin status removed for security reasons.
+                      </p>
+                    )}
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePasswordReset(user.email)}
+                      disabled={resetLoading}
+                    >
+                      {resetLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : null}
+                      Send Password Reset
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
           )}
-        </div>
-      </div>
-      
-      {editMember && (
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="bg-jf-dark text-white border border-white/10 md:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editMember.id === 'new' ? 'Aggiungi Membro' : `Modifica ${editMember.name}`}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome</Label>
-                  <Input
-                    id="name"
-                    value={editMember.name}
-                    onChange={(e) => setEditMember({...editMember, name: e.target.value})}
-                    className="bg-black/50 border-white/20"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="image">URL Immagine</Label>
-                  <Input
-                    id="image"
-                    value={editMember.image}
-                    onChange={(e) => setEditMember({...editMember, image: e.target.value})}
-                    className="bg-black/50 border-white/20"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="role">Ruolo</Label>
-                  <Input
-                    id="role"
-                    value={editMember.role}
-                    onChange={(e) => setEditMember({...editMember, role: e.target.value})}
-                    className="bg-black/50 border-white/20"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="join_date">Data iscrizione</Label>
-                  <Input
-                    id="join_date"
-                    value={editMember.join_date || ''}
-                    onChange={(e) => setEditMember({...editMember, join_date: e.target.value})}
-                    className="bg-black/50 border-white/20"
-                    placeholder="e.g. September 2015"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="achievements">
-                  Achievements (uno per riga)
-                </Label>
-                <Textarea
-                  id="achievements"
-                  value={achievements}
-                  onChange={(e) => setAchievements(e.target.value)}
-                  rows={5}
-                  className="bg-black/50 border-white/20"
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDialogOpen(false);
-                  setEditMember(null);
-                }}
-              >
-                <X className="mr-2 h-4 w-4" /> Annulla
-              </Button>
-              
-              <Button 
-                className="bg-[#D946EF] hover:bg-[#D946EF]/90"
-                onClick={handleSaveMember}
-              >
-                <Save className="mr-2 h-4 w-4" /> Salva
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-      
-      {editGame && (
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="bg-jf-dark text-white border border-white/10 md:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editGame.id === 'new' ? 'Aggiungi Best Game' : `Modifica ${editGame.players}`}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="players">Giocatori</Label>
-                  <Input
-                    id="players"
-                    value={editGame.players}
-                    onChange={(e) => setEditGame({...editGame, players: e.target.value})}
-                    className="bg-black/50 border-white/20"
-                    placeholder="e.g. Player1 vs Player2"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="image_url">URL Immagine</Label>
-                  <Input
-                    id="image_url"
-                    value={editGame.image_url}
-                    onChange={(e) => setEditGame({...editGame, image_url: e.target.value})}
-                    className="bg-black/50 border-white/20"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tournament">Torneo</Label>
-                  <Input
-                    id="tournament"
-                    value={editGame.tournament}
-                    onChange={(e) => setEditGame({...editGame, tournament: e.target.value})}
-                    className="bg-black/50 border-white/20"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="phase">Fase</Label>
-                  <Input
-                    id="phase"
-                    value={editGame.phase}
-                    onChange={(e) => setEditGame({...editGame, phase: e.target.value})}
-                    className="bg-black/50 border-white/20"
-                    placeholder="e.g. Finals"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="format">Formato</Label>
-                  <Input
-                    id="format"
-                    value={editGame.format}
-                    onChange={(e) => setEditGame({...editGame, format: e.target.value})}
-                    className="bg-black/50 border-white/20"
-                    placeholder="e.g. Gen 9 OU"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="replay_url">URL Replay</Label>
-                  <Input
-                    id="replay_url"
-                    value={editGame.replay_url}
-                    onChange={(e) => setEditGame({...editGame, replay_url: e.target.value})}
-                    className="bg-black/50 border-white/20"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="description_it">Descrizione (IT)</Label>
-                <Textarea
-                  id="description_it"
-                  value={editGame.description_it}
-                  onChange={(e) => setEditGame({...editGame, description_it: e.target.value})}
-                  rows={3}
-                  className="bg-black/50 border-white/20"
-                />
-              </div>
+        </TabsContent>
 
-              <div className="space-y-2">
-                <Label htmlFor="description_en">Descrizione (EN)</Label>
-                <Textarea
-                  id="description_en"
-                  value={editGame.description_en}
-                  onChange={(e) => setEditGame({...editGame, description_en: e.target.value})}
-                  rows={3}
-                  className="bg-black/50 border-white/20"
-                />
-              </div>
+        {/* Team Members Tab */}
+        <TabsContent value="members" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Team Members</h2>
+            <Dialog open={memberDialogOpen} onOpenChange={setMemberDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => {
+                  setEditingMember(null);
+                  setNewMember(initialMemberState);
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Member
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{editingMember ? "Edit Member" : "Add New Member"}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Name</Label>
+                      <Input
+                        id="name"
+                        value={editingMember ? editingMember.name : newMember.name}
+                        onChange={(e) => {
+                          if (editingMember) {
+                            setEditingMember({ ...editingMember, name: e.target.value });
+                          } else {
+                            setNewMember({ ...newMember, name: e.target.value });
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="role">Role</Label>
+                      <Input
+                        id="role"
+                        value={editingMember ? editingMember.role : newMember.role}
+                        onChange={(e) => {
+                          if (editingMember) {
+                            setEditingMember({ ...editingMember, role: e.target.value });
+                          } else {
+                            setNewMember({ ...newMember, role: e.target.value });
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="image">Image URL</Label>
+                      <Input
+                        id="image"
+                        value={editingMember ? editingMember.image : newMember.image}
+                        onChange={(e) => {
+                          if (editingMember) {
+                            setEditingMember({ ...editingMember, image: e.target.value });
+                          } else {
+                            setNewMember({ ...newMember, image: e.target.value });
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="join_date">Join Date</Label>
+                      <Input
+                        id="join_date"
+                        value={editingMember ? editingMember.join_date || "" : newMember.join_date || ""}
+                        onChange={(e) => {
+                          if (editingMember) {
+                            setEditingMember({ ...editingMember, join_date: e.target.value });
+                          } else {
+                            setNewMember({ ...newMember, join_date: e.target.value });
+                          }
+                        }}
+                        placeholder="e.g. September 2015"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Achievements</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={achievementInput}
+                        onChange={(e) => setAchievementInput(e.target.value)}
+                        placeholder="Add achievement"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddAchievement();
+                          }
+                        }}
+                      />
+                      <Button type="button" onClick={handleAddAchievement}>
+                        Add
+                      </Button>
+                    </div>
+                    <div className="mt-2">
+                      <ul className="space-y-2">
+                        {(editingMember ? editingMember.achievements : newMember.achievements).map((achievement, index) => (
+                          <li key={index} className="flex justify-between items-center bg-gray-100 p-2 rounded">
+                            <span>{achievement}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveAchievement(index)}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setMemberDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="button" onClick={editingMember ? handleEditMember : handleAddMember}>
+                    {editingMember ? "Update" : "Add"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {loadingMembers ? (
+            <div className="flex justify-center my-12">
+              <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-            
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDialogOpen(false);
-                  setEditGame(null);
-                }}
-              >
-                <X className="mr-2 h-4 w-4" /> Annulla
-              </Button>
-              
-              <Button 
-                className="bg-[#D946EF] hover:bg-[#D946EF]/90"
-                onClick={handleSaveGame}
-              >
-                <Save className="mr-2 h-4 w-4" /> Salva
-              </Button>
+          ) : members.length === 0 ? (
+            <div className="text-center py-12 bg-gray-100 rounded-lg">
+              <p className="text-lg text-gray-500">No members found</p>
             </div>
-          </DialogContent>
-        </Dialog>
-      )}
+          ) : (
+            <div className="grid gap-4">
+              {members.map((member) => (
+                <Card key={member.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between">
+                      <CardTitle>{member.name}</CardTitle>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            setEditingMember(member);
+                            setMemberDialogOpen(true);
+                          }}
+                        >
+                          <PenSquare className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleDeleteMember(member.id)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium">Role:</p>
+                        <p className="text-sm">{member.role}</p>
+                        
+                        {member.join_date && (
+                          <>
+                            <p className="text-sm font-medium mt-2">Join Date:</p>
+                            <p className="text-sm">{member.join_date}</p>
+                          </>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Achievements:</p>
+                        <ul className="text-sm list-disc pl-4">
+                          {member.achievements.map((achievement, index) => (
+                            <li key={index}>{achievement}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Best Games Tab */}
+        <TabsContent value="games" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Best Games</h2>
+            <Dialog open={gameDialogOpen} onOpenChange={setGameDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => {
+                  setEditingGame(null);
+                  setNewGame(initialGameState);
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Game
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{editingGame ? "Edit Game" : "Add New Game"}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="tournament">Tournament</Label>
+                      <Input
+                        id="tournament"
+                        value={editingGame ? editingGame.tournament : newGame.tournament}
+                        onChange={(e) => {
+                          if (editingGame) {
+                            setEditingGame({ ...editingGame, tournament: e.target.value });
+                          } else {
+                            setNewGame({ ...newGame, tournament: e.target.value });
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="players">Players</Label>
+                      <Input
+                        id="players"
+                        value={editingGame ? editingGame.players : newGame.players}
+                        onChange={(e) => {
+                          if (editingGame) {
+                            setEditingGame({ ...editingGame, players: e.target.value });
+                          } else {
+                            setNewGame({ ...newGame, players: e.target.value });
+                          }
+                        }}
+                        placeholder="e.g. Player1 vs Player2"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phase">Phase</Label>
+                      <Input
+                        id="phase"
+                        value={editingGame ? editingGame.phase : newGame.phase}
+                        onChange={(e) => {
+                          if (editingGame) {
+                            setEditingGame({ ...editingGame, phase: e.target.value });
+                          } else {
+                            setNewGame({ ...newGame, phase: e.target.value });
+                          }
+                        }}
+                        placeholder="e.g. Finals"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="format">Format</Label>
+                      <Input
+                        id="format"
+                        value={editingGame ? editingGame.format : newGame.format}
+                        onChange={(e) => {
+                          if (editingGame) {
+                            setEditingGame({ ...editingGame, format: e.target.value });
+                          } else {
+                            setNewGame({ ...newGame, format: e.target.value });
+                          }
+                        }}
+                        placeholder="e.g. Gen 9 OU"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="image_url">Image URL</Label>
+                      <Input
+                        id="image_url"
+                        value={editingGame ? editingGame.image_url : newGame.image_url}
+                        onChange={(e) => {
+                          if (editingGame) {
+                            setEditingGame({ ...editingGame, image_url: e.target.value });
+                          } else {
+                            setNewGame({ ...newGame, image_url: e.target.value });
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="replay_url">Replay URL</Label>
+                      <Input
+                        id="replay_url"
+                        value={editingGame ? editingGame.replay_url : newGame.replay_url}
+                        onChange={(e) => {
+                          if (editingGame) {
+                            setEditingGame({ ...editingGame, replay_url: e.target.value });
+                          } else {
+                            setNewGame({ ...newGame, replay_url: e.target.value });
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description_it">Description (Italian)</Label>
+                    <Textarea
+                      id="description_it"
+                      rows={3}
+                      value={editingGame ? editingGame.description_it : newGame.description_it}
+                      onChange={(e) => {
+                        if (editingGame) {
+                          setEditingGame({ ...editingGame, description_it: e.target.value });
+                        } else {
+                          setNewGame({ ...newGame, description_it: e.target.value });
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description_en">Description (English)</Label>
+                    <Textarea
+                      id="description_en"
+                      rows={3}
+                      value={editingGame ? editingGame.description_en : newGame.description_en}
+                      onChange={(e) => {
+                        if (editingGame) {
+                          setEditingGame({ ...editingGame, description_en: e.target.value });
+                        } else {
+                          setNewGame({ ...newGame, description_en: e.target.value });
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setGameDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="button" onClick={editingGame ? handleEditGame : handleAddGame}>
+                    {editingGame ? "Update" : "Add"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {loadingGames ? (
+            <div className="flex justify-center my-12">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : games.length === 0 ? (
+            <div className="text-center py-12 bg-gray-100 rounded-lg">
+              <p className="text-lg text-gray-500">No games found</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {games.map((game) => (
+                <Card key={game.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between">
+                      <CardTitle>{game.players}</CardTitle>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            setEditingGame(game);
+                            setGameDialogOpen(true);
+                          }}
+                        >
+                          <PenSquare className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleDeleteGame(game.id)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <CardDescription>
+                      {game.tournament} - {game.phase} - {game.format}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium">English Description:</p>
+                        <p className="text-sm">{game.description_en.length > 100 ? `${game.description_en.substring(0, 100)}...` : game.description_en}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Italian Description:</p>
+                        <p className="text-sm">{game.description_it.length > 100 ? `${game.description_it.substring(0, 100)}...` : game.description_it}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm font-medium">Replay URL:</p>
+                        <p className="text-sm truncate">
+                          <a href={game.replay_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                            {game.replay_url}
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* FAQs Tab */}
+        <TabsContent value="faqs">
+          <FAQManager />
+        </TabsContent>
+
+        {/* Footer Resources Tab */}
+        <TabsContent value="footer">
+          <FooterResourceManager />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

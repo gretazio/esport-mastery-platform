@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,9 +33,6 @@ const TopMembers = () => {
       setLoading(true);
       setError(null);
       console.log("Fetching members from Supabase...");
-      
-      // Added a small cache buster to prevent stale data
-      const timestamp = new Date().getTime();
       
       const { data, error } = await supabase
         .from('members')
